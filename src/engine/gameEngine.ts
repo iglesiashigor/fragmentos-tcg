@@ -706,6 +706,7 @@ export function playUnit(
   state: GameState,
   playerIdx: PlayerIndex,
   cardDef: CardDefinition,
+  manualRecoverFromDiscard = false,
 ): GameState {
   const player = state.players[playerIdx];
   if (player.mana < cardDef.manaCost) return state;
@@ -745,7 +746,7 @@ export function playUnit(
   };
 
   // Resolve on-summon effects
-  s = resolveOnSummonEffects(s, playerIdx, unit);
+  s = resolveOnSummonEffects(s, playerIdx, unit, manualRecoverFromDiscard);
   return s;
 }
 
@@ -757,6 +758,7 @@ export function resolveOnSummonEffects(
   state: GameState,
   playerIdx: PlayerIndex,
   unit: BattleCard,
+  manualRecoverFromDiscard = false,
 ): GameState {
   let s = state;
   const opponent = (1 - playerIdx) as PlayerIndex;
@@ -802,7 +804,7 @@ export function resolveOnSummonEffects(
       s = { ...s, players: newPlayers };
       s = cleanDeadUnits(s, opponent);
     } else if (eff.type === "recoverFromDiscard") {
-      if (playerIdx === 0) {
+      if (playerIdx === 0 || manualRecoverFromDiscard) {
         s = {
           ...s,
           pendingEffect: {
@@ -1937,6 +1939,7 @@ export function activateAbility(
   state: GameState,
   playerIdx: PlayerIndex,
   unitInstanceId: string,
+  manualRecoverFromDiscard = false,
 ): GameState {
   const player = state.players[playerIdx];
   const unitIdx = player.units.findIndex(
@@ -1963,7 +1966,7 @@ export function activateAbility(
 
   for (const eff of activatedEffects) {
     if (eff.type === "recoverFromDiscard") {
-      if (playerIdx === 0) {
+      if (playerIdx === 0 || manualRecoverFromDiscard) {
         s = {
           ...s,
           pendingEffect: {
