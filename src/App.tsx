@@ -159,6 +159,7 @@ function AppContent() {
           <GameBoard
             initialState={gameState}
             onGameEnd={handleGameEnd}
+            playerNames={[profile?.username ?? 'Você', 'IA']}
           />
           {winner !== null && (
             <GameOver
