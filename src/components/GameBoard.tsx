@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  GameState, PlayerIndex, BattleCard, CardDefinition,
+  GameState, PlayerIndex, BattleCard, CardDefinition, CardEffect, CardType,
 } from '../types/game';
 import {
   playUnit, playTerrain, playSpell, attachEquipment, attachMount,
@@ -181,6 +181,68 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     setGameMessage('');
   };
 
+  const cardTypeNames: Record<CardType, string> = {
+    hero: 'heroi',
+    unit: 'unidade',
+    terrain: 'terreno',
+    equipment: 'equipamento',
+    mount: 'montaria',
+    spell: 'feitico',
+    mana: 'mana',
+  };
+
+  const hasRecoverTargetInDiscard = (eff: CardEffect) =>
+    player.discard.some(c => !eff.cardType || c.type === eff.cardType);
+
+  const hasRecoverEffect = (
+    card: CardDefinition | BattleCard,
+    timing?: CardEffect['timing'],
+  ) =>
+    card.effects.some(e =>
+      e.type === 'recoverFromDiscard' &&
+      (!timing || e.timing === timing)
+    );
+
+  const getUnavailableRecoverEffect = (
+    card: CardDefinition | BattleCard,
+    timing?: CardEffect['timing'],
+  ) =>
+    card.effects.find(e =>
+      e.type === 'recoverFromDiscard' &&
+      (!timing || e.timing === timing) &&
+      !hasRecoverTargetInDiscard(e)
+    );
+
+  const confirmUseWithoutDiscardTarget = (card: CardDefinition | BattleCard, timing?: CardEffect['timing']) => {
+    const unavailableEffect = getUnavailableRecoverEffect(card, timing);
+    if (!unavailableEffect) return true;
+
+    const typeName = unavailableEffect.cardType ? cardTypeNames[unavailableEffect.cardType] : 'carta';
+    return confirm(`Nao ha carta do tipo ${typeName} no descarte para ${card.name}. Deseja usar mesmo assim?`);
+  };
+
+  const clearUnavailableRecoverSelection = (state: GameState) => {
+    const pendingRecover = state.pendingEffect?.effect?.type === 'recoverFromDiscard'
+      ? state.pendingEffect.effect
+      : null;
+
+    if (!pendingRecover) return state;
+    const hasTarget = state.players[myIdx].discard.some(c => !pendingRecover.cardType || c.type === pendingRecover.cardType);
+    if (hasTarget) return state;
+
+    return {
+      ...state,
+      pendingEffect: null,
+      log: [...state.log, 'Nao havia carta valida no descarte para recuperar.'],
+    };
+  };
+
+  const clearRecoverSelection = (state: GameState) => ({
+    ...state,
+    pendingEffect: null,
+    log: [...state.log, 'Nao havia carta valida no descarte para recuperar.'],
+  });
+
   const handleCardFromHand = (card: CardDefinition) => {
     if (!isPlayerTurn || gameState.gameOver) return;
     if (isAttackPhase) {
@@ -191,12 +253,14 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     if (card.type === 'unit') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
       if (player.units.length >= getUnitSlots(player)) { setGameMessage('Sem espaço para unidades!'); return; }
-      const s = playUnit(gameState, myIdx, card);
+      if (!confirmUseWithoutDiscardTarget(card, 'onSummon')) return;
+      const s = clearUnavailableRecoverSelection(playUnit(gameState, myIdx, card, true));
       setGameState(s);
       handlePendingEffectFromState(s);
     } else if (card.type === 'terrain') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
-      const s = playTerrain(gameState, myIdx, card);
+      if (!confirmUseWithoutDiscardTarget(card, 'onPlay')) return;
+      const s = clearUnavailableRecoverSelection(playTerrain(gameState, myIdx, card));
       setGameState(s);
     } else if (card.type === 'spell') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
@@ -204,9 +268,14 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
         ['damage', 'heal', 'applyCondition', 'attackAgain', 'bonusAttackPerDamageTaken', 'removeCondition', 'attackBonus'].includes(e.type) &&
         (e.target === 'anyUnit' || e.target === 'ally' || e.target === 'enemy')
       );
-      const needsDiscard = card.effects.some(e => e.type === 'recoverFromDiscard');
+      const needsDiscard = hasRecoverEffect(card, 'onPlay');
       if (needsDiscard) {
-        const s = playSpell(gameState, myIdx, card);
+        const unavailableRecoverEffect = getUnavailableRecoverEffect(card, 'onPlay');
+        if (!confirmUseWithoutDiscardTarget(card, 'onPlay')) return;
+        const playedState = playSpell(gameState, myIdx, card);
+        const s = unavailableRecoverEffect
+          ? clearRecoverSelection(playedState)
+          : clearUnavailableRecoverSelection(playedState);
         setGameState(s);
         handlePendingEffectFromState(s);
         return;
@@ -236,6 +305,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       handlePendingEffectFromState(s);
     } else if (card.type === 'equipment') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
+      if (!confirmUseWithoutDiscardTarget(card, 'onPlay')) return;
       // Filter out units that already have equipment
       const validEquipTargets = [
         ...(player.hero.equipment ? [] : [player.hero.instanceId]),
@@ -250,6 +320,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       setSelectionMode('selectEquipTarget');
     } else if (card.type === 'mount') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
+      if (!confirmUseWithoutDiscardTarget(card, 'onPlay')) return;
       // Filter out units that already have mounts
       const validMountTargets = [
         ...(player.hero.mount ? [] : [player.hero.instanceId]),
@@ -490,7 +561,8 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
 
   const handleActivateAbility = (unit: BattleCard) => {
     if (!isPlayerTurn || gameState.gameOver) return;
-    const s = activateAbility(gameState, myIdx, unit.instanceId);
+    if (!confirmUseWithoutDiscardTarget(unit, 'activated')) return;
+    const s = clearUnavailableRecoverSelection(activateAbility(gameState, myIdx, unit.instanceId, true));
     setGameState(s);
     handlePendingEffectFromState(s);
   };

@@ -30,6 +30,25 @@ function rowToDeck(row: DeckRow): DeckDefinition {
   };
 }
 
+function formatPvpLogLine(line: string, playerNames: [string, string]) {
+  return line
+    .replace(/^Jogador\b/, playerNames[0])
+    .replace(/^IA\b/, playerNames[1])
+    .replace(/Jogador venceu!/g, `${playerNames[0]} venceu!`)
+    .replace(/IA venceu!/g, `${playerNames[1]} venceu!`)
+    .replace(/Partida iniciada! Jogador começa\./g, `Partida iniciada! ${playerNames[0]} começa.`)
+    .replace(/Partida iniciada! IA começa\./g, `Partida iniciada! ${playerNames[1]} começa.`)
+    .replace(/--- Turno (\d+) \(Jogador\) ---/g, `--- Turno $1 (${playerNames[0]}) ---`)
+    .replace(/--- Turno (\d+) \(IA\) ---/g, `--- Turno $1 (${playerNames[1]}) ---`);
+}
+
+function formatPvpLog(state: GameState, playerNames: [string, string]): GameState {
+  return {
+    ...state,
+    log: state.log.map(line => formatPvpLogLine(line, playerNames)),
+  };
+}
+
 async function fetchDeck(deckId: string): Promise<DeckDefinition | null> {
   const local = getSavedDecks().find(deck => deck.id === deckId);
   if (local) return local;
@@ -56,10 +75,16 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
   const [secondsRemaining, setSecondsRemaining] = useState(60);
   const processingTimeoutRef = useRef<string | null>(null);
   const latestGameStateRef = useRef<GameState | null>(null);
+  const playerNamesRef = useRef<[string, string]>(['Jogador 1', 'Jogador 2']);
 
   useEffect(() => {
     latestGameStateRef.current = gameState;
   }, [gameState]);
+
+  useEffect(() => {
+    playerNamesRef.current = playerNames;
+    setGameState(currentState => currentState ? formatPvpLog(currentState, playerNames) : currentState);
+  }, [playerNames]);
 
   useEffect(() => {
     if (!roomId || !user) return;
@@ -69,8 +94,9 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
     let pollInterval: ReturnType<typeof setInterval> | null = null;
 
     const applyGameState = (state: GameState) => {
+      const namedState = formatPvpLog(state, playerNamesRef.current);
       const normalizedState: GameState = {
-        ...state,
+        ...namedState,
         turnStartedAt: state.turnStartedAt ?? Date.now(),
         inactivityFaults: state.inactivityFaults ?? [0, 0],
         stateVersion: state.stateVersion ?? 0,
@@ -94,7 +120,10 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
 
       const p1 = data?.find(profile => profile.id === room.player1_id)?.username ?? 'Jogador 1';
       const p2 = data?.find(profile => profile.id === room.player2_id)?.username ?? 'Jogador 2';
-      if (mounted) setPlayerNames([p1, p2]);
+      if (mounted) {
+        playerNamesRef.current = [p1, p2];
+        setPlayerNames([p1, p2]);
+      }
     };
 
     const initializeGameIfHost = async (room: any) => {
@@ -122,14 +151,15 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
         inactivityFaults: [0, 0],
         stateVersion: 1,
       };
+      const namedInitialState = formatPvpLog(initialGameState, playerNamesRef.current);
 
       await supabase
         .from('game_rooms')
-        .update({ game_state: initialGameState, status: 'active' })
+        .update({ game_state: namedInitialState, status: 'active' })
         .eq('id', roomId);
 
       if (mounted) {
-        applyGameState(initialGameState);
+        applyGameState(namedInitialState);
         setLoading(false);
       }
     };
@@ -146,7 +176,7 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
 
       setPlayerNumber(myNumber);
       setOpponentConnected(!!room.player1_id && !!room.player2_id);
-      void loadPlayerNames(room);
+      await loadPlayerNames(room);
 
       if (room.game_state) {
         applyGameState(room.game_state as GameState);
@@ -213,12 +243,12 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
       previousState.turnNumber !== newState.turnNumber
     );
 
-    const stateToSave: GameState = {
+    const stateToSave: GameState = formatPvpLog({
       ...newState,
       turnStartedAt: turnChanged ? Date.now() : (newState.turnStartedAt ?? previousState?.turnStartedAt ?? Date.now()),
       inactivityFaults: newState.inactivityFaults ?? previousState?.inactivityFaults ?? [0, 0],
       stateVersion: Math.max(previousState?.stateVersion ?? 0, newState.stateVersion ?? 0) + 1,
-    };
+    }, playerNamesRef.current);
 
     latestGameStateRef.current = stateToSave;
     setGameState(stateToSave);
@@ -283,6 +313,7 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
           stateVersion: (nextState.stateVersion ?? 0) + 1,
         };
       }
+      nextState = formatPvpLog(nextState, playerNamesRef.current);
 
       void (async () => {
         const { error: updateError } = await supabase
