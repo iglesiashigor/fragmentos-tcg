@@ -13,7 +13,8 @@ export type EffectType =
   | 'damageAllUnits' | 'healAllUnits' | 'applyConditionAllUnits' | 'removeConditionAllUnits'
   | 'increaseMana' | 'increaseUnitSlots' | 'reduceSpellCost' | 'reduceUnitCost'
   | 'terrainStartOfTurn' | 'destroyTerrain' | 'recoverEquipmentDurability'
-  | 'bonusAttackPerDamageTaken' | 'defenseBonus';
+  | 'bonusAttackPerDamageTaken' | 'defenseBonus' | 'attackBonus'
+  | 'poisonOnDamage' | 'drawOnAllyDeath' | 'drawOnRecoverUnit';
 
 export interface CardEffect {
   type: EffectType;
