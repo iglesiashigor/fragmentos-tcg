@@ -262,7 +262,7 @@ export const ALL_CARDS: CardDefinition[] = [
     name: 'Floresta de Espinhos',
     type: 'terrain',
     manaCost: 3,
-    effects: [{ type: 'applyConditionAllUnits', condition: 'poisoned', target: 'allEnemies', timing: 'startOfTurn' }],
+    effects: [{ type: 'poisonOnDamage', condition: 'poisoned', target: 'allAllies', timing: 'onDamageDealt' }],
   },
   {
     id: 'lanca-arvore-sagrada',
@@ -515,7 +515,7 @@ export const ALL_CARDS: CardDefinition[] = [
     manaCost: 2,
     durability: 2,
     maxDurability: 2,
-    effects: [{ type: 'defenseBonus', value: 2, timing: 'onDefend' }],
+    effects: [{ type: 'defenseBonus', value: 4, timing: 'onDefend' }],
     health: 0,
   },
   {
@@ -592,8 +592,8 @@ export const ALL_CARDS: CardDefinition[] = [
     id: 'ferraria-ana',
     name: 'Ferraria Anã',
     type: 'terrain',
-    manaCost: 3,
-    effects: [{ type: 'terrainStartOfTurn', value: 3, target: 'allAllies', timing: 'startOfTurn', statType: 'heal' }],
+    manaCost: 4,
+    effects: [{ type: 'terrainStartOfTurn', value: 3, target: 'allAllies', timing: 'startOfTurn', statType: 'attack' }],
   },
   {
     id: 'martelo-de-trabalho',
@@ -775,7 +775,7 @@ export const ALL_CARDS: CardDefinition[] = [
     name: 'Ruínas Profanas',
     type: 'terrain',
     manaCost: 3,
-    effects: [{ type: 'terrainStartOfTurn', value: 2, target: 'allAllies', timing: 'startOfTurn', statType: 'heal' }],
+    effects: [{ type: 'drawOnRecoverUnit', value: 1, target: 'allAllies', timing: 'onPlay' }],
   },
   {
     id: 'cajado-negro',
@@ -898,7 +898,7 @@ export const ALL_CARDS: CardDefinition[] = [
     attack: 2,
     defense: 8,
     health: 10,
-    effects: [{ type: 'damage', value: 6, target: 'ally', timing: 'activated' }],
+    effects: [{ type: 'attackBonus', value: 6, target: 'ally', timing: 'activated' }],
   },
   {
     id: 'totem-da-calmaria',
@@ -1040,7 +1040,7 @@ export const ALL_CARDS: CardDefinition[] = [
     name: 'Boa Vista',
     type: 'terrain',
     manaCost: 3,
-    effects: [{ type: 'drawCard', value: 1, timing: 'startOfTurn' }],
+    effects: [{ type: 'drawOnAllyDeath', value: 1, target: 'allAllies', timing: 'onDeath' }],
   },
   {
     id: 'local-calmo',
@@ -1147,7 +1147,7 @@ export const ALL_CARDS: CardDefinition[] = [
     manaCost: 3,
     durability: 1,
     maxDurability: 1,
-    effects: [{ type: 'defenseBonus', value: 3, timing: 'onDefend' }],
+    effects: [{ type: 'defenseBonus', value: 6, timing: 'onDefend' }],
     health: 0,
   },
   {
