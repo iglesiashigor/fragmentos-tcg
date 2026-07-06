@@ -260,6 +260,35 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     return true;
   };
 
+  const requestRepairEquipmentConfirmation = (
+    card: CardDefinition,
+    onConfirm: () => void,
+  ) => {
+    const repairsEquipment = card.effects.some(e =>
+      e.type === 'recoverEquipmentDurability' &&
+      e.timing === 'onPlay'
+    );
+
+    if (!repairsEquipment) return false;
+
+    const hasDamagedEquipment =
+      (!!player.hero.equipment && player.hero.equipment.currentDurability < player.hero.equipment.maxDurability) ||
+      player.units.some(unit =>
+        !!unit.equipment &&
+        unit.equipment.currentDurability < unit.equipment.maxDurability
+      );
+
+    if (hasDamagedEquipment) return false;
+
+    setRecoverConfirm({
+      cardName: card.name,
+      title: 'Sem item para reparar',
+      message: <>Voce nao possui item equipado danificado para reparar. Deseja usar mesmo assim?</>,
+      onConfirm,
+    });
+    return true;
+  };
+
   const clearUnavailableRecoverSelection = (state: GameState) => {
     const pendingRecover = state.pendingEffect?.effect?.type === 'recoverFromDiscard'
       ? state.pendingEffect.effect
@@ -304,6 +333,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     } else if (card.type === 'spell') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
       if (!bypassRecoverConfirm && requestDestroyTerrainConfirmation(card, () => handleCardFromHand(card, true))) return;
+      if (!bypassRecoverConfirm && requestRepairEquipmentConfirmation(card, () => handleCardFromHand(card, true))) return;
       const needsTarget = card.effects.some(e =>
         ['damage', 'heal', 'applyCondition', 'attackAgain', 'bonusAttackPerDamageTaken', 'removeCondition', 'attackBonus'].includes(e.type) &&
         (e.target === 'anyUnit' || e.target === 'ally' || e.target === 'enemy')
