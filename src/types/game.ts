@@ -43,6 +43,7 @@ export interface CardDefinition {
   maxDurability?: number;
   isNeutral?: boolean;
   heroOnly?: boolean;
+  imageUrl?: string;
 }
 
 export interface Condition {
@@ -79,6 +80,7 @@ export interface BattleCard {
   mount?: AttachedItem;
   effects: CardEffect[];
   tier?: UnitTier;
+  imageUrl?: string;
 }
 
 export type GamePhase = 'main' | 'attack' | 'end';
