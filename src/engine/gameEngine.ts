@@ -1,11 +1,22 @@
 import {
-  GameState, PlayerState, PlayerIndex, BattleCard, CardDefinition,
-  Condition, ConditionName, CardEffect, AttachedItem, GamePhase, TurnPhase,
-} from '../types/game';
-import { getCardById } from '../data/cards';
+  GameState,
+  PlayerState,
+  PlayerIndex,
+  BattleCard,
+  CardDefinition,
+  Condition,
+  ConditionName,
+  CardEffect,
+  AttachedItem,
+  GamePhase,
+  TurnPhase,
+} from "../types/game";
+import { getCardById } from "../data/cards";
 
 let instanceCounter = 0;
-function newInstanceId() { return `inst-${++instanceCounter}-${Math.random().toString(36).slice(2, 7)}`; }
+function newInstanceId() {
+  return `inst-${++instanceCounter}-${Math.random().toString(36).slice(2, 7)}`;
+}
 
 export function createBattleCard(def: CardDefinition): BattleCard {
   return {
@@ -38,7 +49,11 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-export function buildDeck(heroId: string, coreCards: { cardId: string; count: number }[], neutralCards: { cardId: string; count: number }[]): CardDefinition[] {
+export function buildDeck(
+  heroId: string,
+  coreCards: { cardId: string; count: number }[],
+  neutralCards: { cardId: string; count: number }[],
+): CardDefinition[] {
   const cards: CardDefinition[] = [];
   for (const { cardId, count } of coreCards) {
     const def = getCardById(cardId);
@@ -52,8 +67,10 @@ export function buildDeck(heroId: string, coreCards: { cardId: string; count: nu
 }
 
 export function createInitialState(
-  player0HeroId: string, player0Deck: CardDefinition[],
-  player1HeroId: string, player1Deck: CardDefinition[],
+  player0HeroId: string,
+  player0Deck: CardDefinition[],
+  player1HeroId: string,
+  player1Deck: CardDefinition[],
   firstPlayer: PlayerIndex = 0,
 ): GameState {
   const hero0Def = getCardById(player0HeroId)!;
@@ -93,13 +110,13 @@ export function createInitialState(
     unitSlotBonus: 0,
   };
 
-  const firstName = firstPlayer === 0 ? 'Jogador' : 'IA';
+  const firstName = firstPlayer === 0 ? "Jogador" : "IA";
   return {
     players: [player0, player1],
     currentPlayer: firstPlayer,
     turnNumber: 1,
-    phase: 'main',
-    turnPhase: 'main',
+    phase: "main",
+    turnPhase: "main",
     winner: null,
     gameOver: false,
     log: [`Partida iniciada! ${firstName} começa.`],
@@ -109,13 +126,17 @@ export function createInitialState(
   };
 }
 
-export function getConditionModifiers(card: BattleCard): { atkMod: number; defMod: number } {
-  let atkMod = 0, defMod = 0;
+export function getConditionModifiers(card: BattleCard): {
+  atkMod: number;
+  defMod: number;
+} {
+  let atkMod = 0,
+    defMod = 0;
   for (const c of card.conditions) {
-    if (c.name === 'inspired') atkMod += 2;
-    if (c.name === 'fortified') defMod += 2;
-    if (c.name === 'weakened') atkMod -= 2;
-    if (c.name === 'defenseless') defMod -= 2;
+    if (c.name === "inspired") atkMod += 2;
+    if (c.name === "fortified") defMod += 2;
+    if (c.name === "weakened") atkMod -= 2;
+    if (c.name === "defenseless") defMod -= 2;
   }
   return { atkMod, defMod };
 }
@@ -127,12 +148,26 @@ export function getEffectiveAttack(card: BattleCard): number {
 
 export function getEquipmentAttackBonus(card: BattleCard): number {
   if (!card.equipment || card.equipment.currentDurability <= 0) return 0;
-  const eff = card.equipment.effects.find(e => e.type === 'damage' && e.timing === 'onAttack');
+  const eff = card.equipment.effects.find(
+    (e) => e.type === "damage" && e.timing === "onAttack",
+  );
+  return eff?.value ?? 0;
+}
+
+export function getMountAttackBonus(card: BattleCard): number {
+  if (!card.mount || card.mount.currentDurability <= 0) return 0;
+  const eff = card.mount.effects.find(
+    (e) => e.type === "damage" && e.timing === "onAttack",
+  );
   return eff?.value ?? 0;
 }
 
 export function getAttackDamage(card: BattleCard): number {
-  return getEffectiveAttack(card) + getEquipmentAttackBonus(card);
+  return (
+    getEffectiveAttack(card) +
+    getEquipmentAttackBonus(card) +
+    getMountAttackBonus(card)
+  );
 }
 
 export function getEffectiveDefense(card: BattleCard): number {
@@ -141,46 +176,76 @@ export function getEffectiveDefense(card: BattleCard): number {
 }
 
 export function hasCondition(card: BattleCard, name: ConditionName): boolean {
-  return card.conditions.some(c => c.name === name);
+  return card.conditions.some((c) => c.name === name);
 }
 
-export function applyCondition(card: BattleCard, name: ConditionName): BattleCard {
-  if (hasCondition(card, 'immune') && isNegativeCondition(name)) return card;
+export function applyCondition(
+  card: BattleCard,
+  name: ConditionName,
+): BattleCard {
+  if (hasCondition(card, "immune") && isNegativeCondition(name)) return card;
   if (hasCondition(card, name)) {
     return {
       ...card,
-      conditions: card.conditions.map(c => c.name === name ? { ...c, turnsRemaining: getConditionDuration(name) } : c),
+      conditions: card.conditions.map((c) =>
+        c.name === name
+          ? { ...c, turnsRemaining: getConditionDuration(name) }
+          : c,
+      ),
     };
   }
   return {
     ...card,
-    conditions: [...card.conditions, { name, turnsRemaining: getConditionDuration(name) }],
+    conditions: [
+      ...card.conditions,
+      { name, turnsRemaining: getConditionDuration(name) },
+    ],
   };
 }
 
-export function removeCondition(card: BattleCard, name: ConditionName): BattleCard {
-  return { ...card, conditions: card.conditions.filter(c => c.name !== name) };
+export function removeCondition(
+  card: BattleCard,
+  name: ConditionName,
+): BattleCard {
+  return {
+    ...card,
+    conditions: card.conditions.filter((c) => c.name !== name),
+  };
 }
 
 export function removeAllNegativeConditions(card: BattleCard): BattleCard {
-  return { ...card, conditions: card.conditions.filter(c => !isNegativeCondition(c.name)) };
+  return {
+    ...card,
+    conditions: card.conditions.filter((c) => !isNegativeCondition(c.name)),
+  };
 }
 
 export function isNegativeCondition(name: ConditionName): boolean {
-  return ['burned', 'poisoned', 'bleeding', 'frozen', 'paralyzed', 'silenced', 'weakened', 'defenseless', 'vulnerable'].includes(name);
+  return [
+    "burned",
+    "poisoned",
+    "bleeding",
+    "frozen",
+    "paralyzed",
+    "silenced",
+    "weakened",
+    "defenseless",
+    "vulnerable",
+  ].includes(name);
 }
 
-function getConditionDuration(name: ConditionName): number | 'permanent' {
-  if (['burned', 'poisoned', 'bleeding'].includes(name)) return 'permanent';
-  if (name === 'protected') return 'permanent';
+function getConditionDuration(name: ConditionName): number | "permanent" {
+  if (["burned", "poisoned", "bleeding"].includes(name)) return "permanent";
+  if (name === "protected") return "permanent";
   return 1;
 }
 
 export function canAttack(card: BattleCard, isFirstTurnP0: boolean): boolean {
   if (card.exhausted) return false;
   if (card.summonedThisTurn) return false;
-  if (hasCondition(card, 'frozen') || hasCondition(card, 'paralyzed')) return false;
-  if (isFirstTurnP0 && card.type === 'hero') return false;
+  if (hasCondition(card, "frozen") || hasCondition(card, "paralyzed"))
+    return false;
+  if (isFirstTurnP0 && card.type === "hero") return false;
   return true;
 }
 
@@ -188,30 +253,59 @@ export function getUnitSlots(player: PlayerState): number {
   return 3 + player.unitSlotBonus;
 }
 
+function getStartOfTurnManaBonus(player: PlayerState): number {
+  const cards = [player.hero, ...player.units];
+  return cards.reduce((total, card) => {
+    const equipmentBonus =
+      card.equipment?.effects
+        .filter((e) => e.type === "increaseMana" && e.timing === "startOfTurn")
+        .reduce((sum, e) => sum + (e.value ?? 0), 0) ?? 0;
+    const mountBonus =
+      card.mount?.effects
+        .filter((e) => e.type === "increaseMana" && e.timing === "startOfTurn")
+        .reduce((sum, e) => sum + (e.value ?? 0), 0) ?? 0;
+    return total + equipmentBonus + mountBonus;
+  }, 0);
+}
+
 export function drawCard(state: GameState, playerIdx: PlayerIndex): GameState {
   const player = state.players[playerIdx];
   if (player.deck.length === 0) {
-    const newHero = { ...player.hero, currentHealth: player.hero.currentHealth - 2 };
+    const newHero = {
+      ...player.hero,
+      currentHealth: player.hero.currentHealth - 2,
+    };
     const newPlayers = [...state.players] as [PlayerState, PlayerState];
     newPlayers[playerIdx] = { ...player, hero: newHero };
-    const log = [...state.log, `${player.id === 0 ? 'Jogador' : 'IA'}: Sem cartas! Herói perde 2 de vida.`];
+    const log = [
+      ...state.log,
+      `${player.id === 0 ? "Jogador" : "IA"}: Sem cartas! Herói perde 2 de vida.`,
+    ];
     const gs = { ...state, players: newPlayers, log };
     return checkGameOver(gs);
   }
   const [drawn, ...rest] = player.deck;
   const newPlayers = [...state.players] as [PlayerState, PlayerState];
-  newPlayers[playerIdx] = { ...player, hand: [...player.hand, drawn], deck: rest };
+  newPlayers[playerIdx] = {
+    ...player,
+    hand: [...player.hand, drawn],
+    deck: rest,
+  };
   return { ...state, players: newPlayers };
 }
 
-export function applyDamageToCard(card: BattleCard, damage: number, ignoreDefense = false): { card: BattleCard; destroyed: boolean } {
+export function applyDamageToCard(
+  card: BattleCard,
+  damage: number,
+  ignoreDefense = false,
+): { card: BattleCard; destroyed: boolean } {
   if (damage <= 0) return { card, destroyed: false };
 
   let actualDamage = damage;
-  if (hasCondition(card, 'vulnerable')) actualDamage += 1;
-  if (hasCondition(card, 'protected')) {
+  if (hasCondition(card, "vulnerable")) actualDamage += 1;
+  if (hasCondition(card, "protected")) {
     actualDamage = Math.max(0, actualDamage - 2);
-    card = removeCondition(card, 'protected');
+    card = removeCondition(card, "protected");
   }
 
   let def = ignoreDefense ? 0 : card.currentDefense;
@@ -233,13 +327,34 @@ export function applyDamageToCard(card: BattleCard, damage: number, ignoreDefens
 export function checkGameOver(state: GameState): GameState {
   const p0Dead = state.players[0].hero.currentHealth <= 0;
   const p1Dead = state.players[1].hero.currentHealth <= 0;
-  if (p0Dead && p1Dead) return { ...state, gameOver: true, winner: 'draw', log: [...state.log, 'Empate!'] };
-  if (p0Dead) return { ...state, gameOver: true, winner: 1, log: [...state.log, 'IA venceu!'] };
-  if (p1Dead) return { ...state, gameOver: true, winner: 0, log: [...state.log, 'Jogador venceu!'] };
+  if (p0Dead && p1Dead)
+    return {
+      ...state,
+      gameOver: true,
+      winner: "draw",
+      log: [...state.log, "Empate!"],
+    };
+  if (p0Dead)
+    return {
+      ...state,
+      gameOver: true,
+      winner: 1,
+      log: [...state.log, "IA venceu!"],
+    };
+  if (p1Dead)
+    return {
+      ...state,
+      gameOver: true,
+      winner: 0,
+      log: [...state.log, "Jogador venceu!"],
+    };
   return state;
 }
 
-export function processStartOfTurnConditions(state: GameState, playerIdx: PlayerIndex): GameState {
+export function processStartOfTurnConditions(
+  state: GameState,
+  playerIdx: PlayerIndex,
+): GameState {
   let s = state;
   const player = s.players[playerIdx];
   const cards = [player.hero, ...player.units];
@@ -252,14 +367,23 @@ export function processStartOfTurnConditions(state: GameState, playerIdx: Player
     const toRemove: ConditionName[] = [];
 
     for (const cond of updated.conditions) {
-      if (['burned', 'poisoned', 'bleeding'].includes(cond.name)) {
+      if (["burned", "poisoned", "bleeding"].includes(cond.name)) {
         const { card: damaged } = applyDamageToCard(updated, 1, true);
         updated = damaged;
-        s = { ...s, log: [...s.log, `${updated.name} sofre 1 de dano por ${cond.name}.`] };
+        s = {
+          ...s,
+          log: [...s.log, `${updated.name} sofre 1 de dano por ${cond.name}.`],
+        };
       }
-      if (cond.name === 'regenerating') {
-        updated = { ...updated, currentHealth: Math.min(updated.maxHealth, updated.currentHealth + 1) };
-        s = { ...s, log: [...s.log, `${updated.name} recupera 1 de vida (Regenerando).`] };
+      if (cond.name === "regenerating") {
+        updated = {
+          ...updated,
+          currentHealth: Math.min(updated.maxHealth, updated.currentHealth + 1),
+        };
+        s = {
+          ...s,
+          log: [...s.log, `${updated.name} recupera 1 de vida (Regenerando).`],
+        };
       }
     }
 
@@ -267,7 +391,7 @@ export function processStartOfTurnConditions(state: GameState, playerIdx: Player
 
     if (isHero) newHero = updated;
     else {
-      const idx = newUnits.findIndex(u => u.instanceId === card.instanceId);
+      const idx = newUnits.findIndex((u) => u.instanceId === card.instanceId);
       if (idx >= 0) newUnits[idx] = updated;
     }
   }
@@ -281,24 +405,35 @@ export function processStartOfTurnConditions(state: GameState, playerIdx: Player
   return s;
 }
 
-function tickConditions(card: BattleCard, cardOwner: PlayerIndex, currentPlayer: PlayerIndex): BattleCard {
+function tickConditions(
+  card: BattleCard,
+  cardOwner: PlayerIndex,
+  currentPlayer: PlayerIndex,
+): BattleCard {
   if (cardOwner !== currentPlayer) return card;
   const newConditions = card.conditions
-    .map(c => {
-      if (c.turnsRemaining === 'permanent') return c;
-      if (typeof c.turnsRemaining === 'number') {
+    .map((c) => {
+      if (c.turnsRemaining === "permanent") return c;
+      if (typeof c.turnsRemaining === "number") {
         return { ...c, turnsRemaining: c.turnsRemaining - 1 };
       }
       return c;
     })
-    .filter(c => c.turnsRemaining === 'permanent' || (typeof c.turnsRemaining === 'number' && c.turnsRemaining > 0));
+    .filter(
+      (c) =>
+        c.turnsRemaining === "permanent" ||
+        (typeof c.turnsRemaining === "number" && c.turnsRemaining > 0),
+    );
   return { ...card, conditions: newConditions };
 }
 
-export function cleanDeadUnits(state: GameState, playerIdx: PlayerIndex): GameState {
+export function cleanDeadUnits(
+  state: GameState,
+  playerIdx: PlayerIndex,
+): GameState {
   const player = state.players[playerIdx];
-  const alive = player.units.filter(u => u.currentHealth > 0);
-  const dead = player.units.filter(u => u.currentHealth <= 0);
+  const alive = player.units.filter((u) => u.currentHealth > 0);
+  const dead = player.units.filter((u) => u.currentHealth <= 0);
   if (dead.length === 0) return state;
 
   const discard = [...player.discard];
@@ -315,18 +450,40 @@ export function cleanDeadUnits(state: GameState, playerIdx: PlayerIndex): GameSt
     }
   }
 
-  const logs = dead.map(d => `${d.name} foi derrotado!`);
+  const logs = dead.map((d) => `${d.name} foi derrotado!`);
   const newPlayers = [...state.players] as [PlayerState, PlayerState];
   newPlayers[playerIdx] = { ...player, units: alive, discard };
-  return { ...state, players: newPlayers, log: [...state.log, ...logs] };
+  let s = { ...state, players: newPlayers, log: [...state.log, ...logs] };
+
+  const owner = s.players[playerIdx];
+  const deathDraw = owner.terrain?.effects.find(
+    (e) => e.type === "drawOnAllyDeath" && e.value,
+  );
+  if (deathDraw) {
+    for (let i = 0; i < dead.length * (deathDraw.value ?? 1); i++)
+      s = drawCard(s, playerIdx);
+    s = {
+      ...s,
+      log: [
+        ...s.log,
+        `${owner.terrain?.name}: comprou carta pela derrota de aliado.`,
+      ],
+    };
+  }
+
+  return s;
 }
 
 function revertTerrainStatBonuses(player: PlayerState): PlayerState {
-  const hasAtkTerrain = player.terrain?.effects.some(e => e.type === 'terrainStartOfTurn' && e.statType === 'attack');
-  const hasDefTerrain = player.terrain?.effects.some(e => e.type === 'terrainStartOfTurn' && e.statType === 'defense');
+  const hasAtkTerrain = player.terrain?.effects.some(
+    (e) => e.type === "terrainStartOfTurn" && e.statType === "attack",
+  );
+  const hasDefTerrain = player.terrain?.effects.some(
+    (e) => e.type === "terrainStartOfTurn" && e.statType === "defense",
+  );
   return {
     ...player,
-    units: player.units.map(u => ({
+    units: player.units.map((u) => ({
       ...u,
       currentAttack: hasAtkTerrain ? u.currentAttack : u.baseAttack,
       currentDefense: hasDefTerrain ? u.currentDefense : u.baseDefense,
@@ -334,7 +491,10 @@ function revertTerrainStatBonuses(player: PlayerState): PlayerState {
   };
 }
 
-export function processTerrainEffects(state: GameState, playerIdx: PlayerIndex): GameState {
+export function processTerrainEffects(
+  state: GameState,
+  playerIdx: PlayerIndex,
+): GameState {
   const player = state.players[playerIdx];
   if (!player.terrain) return state;
 
@@ -342,25 +502,58 @@ export function processTerrainEffects(state: GameState, playerIdx: PlayerIndex):
   const terrain = player.terrain;
 
   for (const eff of terrain.effects) {
-    if (eff.timing !== 'startOfTurn') continue;
+    if (eff.timing !== "startOfTurn") continue;
 
-    if (eff.type === 'terrainStartOfTurn') {
-      if (eff.target === 'allAllies' && eff.value) {
+    if (eff.type === "terrainStartOfTurn") {
+      if (eff.target === "allAllies" && eff.value) {
         let newHero = player.hero;
         let newUnits = [...player.units];
-        const statType = eff.statType ?? 'heal';
+        const statType = eff.statType ?? "heal";
 
-        if (statType === 'heal') {
+        if (statType === "heal") {
           const value = eff.value;
-          newHero = { ...newHero, currentHealth: Math.min(newHero.maxHealth, newHero.currentHealth + value) };
-          newUnits = newUnits.map(u => ({ ...u, currentHealth: Math.min(u.maxHealth, u.currentHealth + value) }));
-          s = { ...s, log: [...s.log, `${terrain.name}: Aliados recuperam ${value} de vida.`] };
-        } else if (statType === 'defense') {
-          newUnits = newUnits.map(u => ({ ...u, currentDefense: u.baseDefense + eff.value! }));
-          s = { ...s, log: [...s.log, `${terrain.name}: Aliados ganham +${eff.value} DEF.`] };
-        } else if (statType === 'attack') {
-          newUnits = newUnits.map(u => ({ ...u, currentAttack: u.baseAttack + eff.value! }));
-          s = { ...s, log: [...s.log, `${terrain.name}: Aliados ganham +${eff.value} ATK.`] };
+          newHero = {
+            ...newHero,
+            currentHealth: Math.min(
+              newHero.maxHealth,
+              newHero.currentHealth + value,
+            ),
+          };
+          newUnits = newUnits.map((u) => ({
+            ...u,
+            currentHealth: Math.min(u.maxHealth, u.currentHealth + value),
+          }));
+          s = {
+            ...s,
+            log: [
+              ...s.log,
+              `${terrain.name}: Aliados recuperam ${value} de vida.`,
+            ],
+          };
+        } else if (statType === "defense") {
+          newUnits = newUnits.map((u) => ({
+            ...u,
+            currentDefense: u.baseDefense + eff.value!,
+          }));
+          s = {
+            ...s,
+            log: [
+              ...s.log,
+              `${terrain.name}: Aliados ganham +${eff.value} DEF.`,
+            ],
+          };
+        } else if (statType === "attack") {
+          newUnits = newUnits.map((u) => ({
+            ...u,
+            currentAttack: u.baseAttack + eff.value!,
+          }));
+          s = {
+            ...s,
+            log: [
+              ...s.log,
+              `${terrain.name}: Aliados ganham +${eff.value} ATK.`,
+            ],
+          };
         }
         const newPlayers = [...s.players] as [PlayerState, PlayerState];
         newPlayers[playerIdx] = { ...player, hero: newHero, units: newUnits };
@@ -368,35 +561,69 @@ export function processTerrainEffects(state: GameState, playerIdx: PlayerIndex):
       }
     }
 
-    if (eff.type === 'applyConditionAllUnits' && eff.condition) {
+    if (eff.type === "applyConditionAllUnits" && eff.condition) {
       let newUnits = [...player.units];
-      newUnits = newUnits.map(u => applyCondition(u, eff.condition!));
-      s = { ...s, log: [...s.log, `${terrain.name}: Aliados recebem ${eff.condition}.`] };
+      newUnits = newUnits.map((u) => applyCondition(u, eff.condition!));
+      s = {
+        ...s,
+        log: [...s.log, `${terrain.name}: Aliados recebem ${eff.condition}.`],
+      };
       const newPlayers = [...s.players] as [PlayerState, PlayerState];
       newPlayers[playerIdx] = { ...player, units: newUnits };
       s = { ...s, players: newPlayers };
     }
 
-    if (eff.type === 'drawCard' && eff.value) {
+    if (eff.type === "drawCard" && eff.value) {
       for (let i = 0; i < eff.value; i++) s = drawCard(s, playerIdx);
-      s = { ...s, log: [...s.log, `${terrain.name}: Compre ${eff.value} carta(s).`] };
+      s = {
+        ...s,
+        log: [...s.log, `${terrain.name}: Compre ${eff.value} carta(s).`],
+      };
     }
 
-    if (eff.type === 'reduceSpellCost') {
+    if (eff.type === "reduceSpellCost") {
       const newPlayers = [...s.players] as [PlayerState, PlayerState];
       const p = s.players[playerIdx];
-      newPlayers[playerIdx] = { ...p, hand: p.hand.map(c => c.type === 'spell' ? { ...c, manaCost: Math.max(0, c.manaCost - (eff.value ?? 1)) } : c) };
-      s = { ...s, players: newPlayers, log: [...s.log, `${terrain.name}: Custo de feitiços reduzido em ${eff.value}.`] };
+      newPlayers[playerIdx] = {
+        ...p,
+        hand: p.hand.map((c) =>
+          c.type === "spell"
+            ? { ...c, manaCost: Math.max(0, c.manaCost - (eff.value ?? 1)) }
+            : c,
+        ),
+      };
+      s = {
+        ...s,
+        players: newPlayers,
+        log: [
+          ...s.log,
+          `${terrain.name}: Custo de feitiços reduzido em ${eff.value}.`,
+        ],
+      };
     }
 
-    if (eff.type === 'reduceUnitCost') {
+    if (eff.type === "reduceUnitCost") {
       const newPlayers = [...s.players] as [PlayerState, PlayerState];
       const p = s.players[playerIdx];
-      newPlayers[playerIdx] = { ...p, hand: p.hand.map(c => c.type === 'unit' ? { ...c, manaCost: Math.max(0, c.manaCost - (eff.value ?? 1)) } : c) };
-      s = { ...s, players: newPlayers, log: [...s.log, `${terrain.name}: Custo de unidades reduzido em ${eff.value}.`] };
+      newPlayers[playerIdx] = {
+        ...p,
+        hand: p.hand.map((c) =>
+          c.type === "unit"
+            ? { ...c, manaCost: Math.max(0, c.manaCost - (eff.value ?? 1)) }
+            : c,
+        ),
+      };
+      s = {
+        ...s,
+        players: newPlayers,
+        log: [
+          ...s.log,
+          `${terrain.name}: Custo de unidades reduzido em ${eff.value}.`,
+        ],
+      };
     }
 
-    if (eff.type === 'increaseUnitSlots') {
+    if (eff.type === "increaseUnitSlots") {
       const newPlayers = [...s.players] as [PlayerState, PlayerState];
       const p = s.players[playerIdx];
       newPlayers[playerIdx] = { ...p, unitSlotBonus: eff.value ?? 1 };
@@ -413,7 +640,11 @@ export function startTurn(state: GameState): GameState {
   let s = state;
 
   // Untap all units and hero
-  let newUnits = player.units.map(u => ({ ...u, exhausted: false, summonedThisTurn: false }));
+  let newUnits = player.units.map((u) => ({
+    ...u,
+    exhausted: false,
+    summonedThisTurn: false,
+  }));
   let newHero = { ...player.hero, exhausted: false, summonedThisTurn: false };
   const newPlayers = [...s.players] as [PlayerState, PlayerState];
   newPlayers[pi] = { ...player, units: newUnits, hero: newHero };
@@ -421,10 +652,23 @@ export function startTurn(state: GameState): GameState {
 
   // Gain mana
   const newMaxMana = Math.min(12, s.players[pi].maxMana + 1);
-  const newMana = newMaxMana + s.players[pi].manaBonusFromItems;
+  const itemManaBonus = getStartOfTurnManaBonus(s.players[pi]);
+  const newMana = newMaxMana + itemManaBonus;
   const mp2 = [...s.players] as [PlayerState, PlayerState];
-  mp2[pi] = { ...s.players[pi], maxMana: newMaxMana, mana: newMana };
-  s = { ...s, players: mp2, log: [...s.log, `--- Turno ${s.turnNumber} (${pi === 0 ? 'Jogador' : 'IA'}) ---`] };
+  mp2[pi] = {
+    ...s.players[pi],
+    maxMana: newMaxMana,
+    mana: newMana,
+    manaBonusFromItems: itemManaBonus,
+  };
+  s = {
+    ...s,
+    players: mp2,
+    log: [
+      ...s.log,
+      `--- Turno ${s.turnNumber} (${pi === 0 ? "Jogador" : "IA"}) ---`,
+    ],
+  };
 
   // Draw card
   s = drawCard(s, pi);
@@ -437,18 +681,32 @@ export function startTurn(state: GameState): GameState {
   s = processTerrainEffects(s, pi);
   if (s.gameOver) return s;
 
-  s = { ...s, phase: 'main', turnPhase: 'main', firstPlayerCannotAttack: false, extraAttackPhase: false };
+  s = {
+    ...s,
+    phase: "main",
+    turnPhase: "main",
+    firstPlayerCannotAttack: false,
+    extraAttackPhase: false,
+  };
   return s;
 }
 
-export function spendMana(state: GameState, playerIdx: PlayerIndex, amount: number): GameState {
+export function spendMana(
+  state: GameState,
+  playerIdx: PlayerIndex,
+  amount: number,
+): GameState {
   const player = state.players[playerIdx];
   const newPlayers = [...state.players] as [PlayerState, PlayerState];
   newPlayers[playerIdx] = { ...player, mana: player.mana - amount };
   return { ...state, players: newPlayers };
 }
 
-export function playUnit(state: GameState, playerIdx: PlayerIndex, cardDef: CardDefinition): GameState {
+export function playUnit(
+  state: GameState,
+  playerIdx: PlayerIndex,
+  cardDef: CardDefinition,
+): GameState {
   const player = state.players[playerIdx];
   if (player.mana < cardDef.manaCost) return state;
   if (player.units.length >= getUnitSlots(player)) return state;
@@ -457,13 +715,19 @@ export function playUnit(state: GameState, playerIdx: PlayerIndex, cardDef: Card
   unit.summonedThisTurn = true;
 
   const newHand = player.hand.filter((_, i) => {
-    if (player.hand.indexOf(cardDef) === i) { player.hand.splice(i, 1); return false; }
+    if (player.hand.indexOf(cardDef) === i) {
+      player.hand.splice(i, 1);
+      return false;
+    }
     return true;
   });
   // Re-filter properly
   let removed = false;
-  const filteredHand = player.hand.filter(c => {
-    if (!removed && c.id === cardDef.id) { removed = true; return false; }
+  const filteredHand = player.hand.filter((c) => {
+    if (!removed && c.id === cardDef.id) {
+      removed = true;
+      return false;
+    }
     return true;
   });
 
@@ -474,38 +738,59 @@ export function playUnit(state: GameState, playerIdx: PlayerIndex, cardDef: Card
     units: [...player.units, unit],
     mana: player.mana - cardDef.manaCost,
   };
-  let s = { ...state, players: newPlayers, log: [...state.log, `${pi(playerIdx)} invoca ${cardDef.name}.`] };
+  let s = {
+    ...state,
+    players: newPlayers,
+    log: [...state.log, `${pi(playerIdx)} invoca ${cardDef.name}.`],
+  };
 
   // Resolve on-summon effects
   s = resolveOnSummonEffects(s, playerIdx, unit);
   return s;
 }
 
-function pi(idx: PlayerIndex) { return idx === 0 ? 'Jogador' : 'IA'; }
+function pi(idx: PlayerIndex) {
+  return idx === 0 ? "Jogador" : "IA";
+}
 
-export function resolveOnSummonEffects(state: GameState, playerIdx: PlayerIndex, unit: BattleCard): GameState {
+export function resolveOnSummonEffects(
+  state: GameState,
+  playerIdx: PlayerIndex,
+  unit: BattleCard,
+): GameState {
   let s = state;
   const opponent = (1 - playerIdx) as PlayerIndex;
 
   for (const eff of unit.effects) {
-    if (eff.timing !== 'onSummon') continue;
+    if (eff.timing !== "onSummon") continue;
 
-    if (eff.type === 'searchCard') {
+    if (eff.type === "searchCard") {
       s = searchCardEffect(s, playerIdx, eff);
-    } else if (eff.type === 'applyCondition' && eff.condition) {
-      if (eff.target === 'ally') {
-        s = { ...s, pendingEffect: { type: 'selectAllyUnit', sourceCard: unit, effect: eff } };
-      } else if (eff.target === 'hero') {
+    } else if (eff.type === "applyCondition" && eff.condition) {
+      if (eff.target === "ally") {
+        s = {
+          ...s,
+          pendingEffect: {
+            type: "selectAllyUnit",
+            sourceCard: unit,
+            effect: eff,
+          },
+        };
+      } else if (eff.target === "hero") {
         const newP = s.players[playerIdx];
         const newHero = applyCondition(newP.hero, eff.condition);
         const newPlayers = [...s.players] as [PlayerState, PlayerState];
         newPlayers[playerIdx] = { ...newP, hero: newHero };
-        s = { ...s, players: newPlayers, log: [...s.log, `Herói recebe ${eff.condition}.`] };
+        s = {
+          ...s,
+          players: newPlayers,
+          log: [...s.log, `Herói recebe ${eff.condition}.`],
+        };
       }
-    } else if (eff.type === 'dealDamageToConditioned' && eff.condition) {
+    } else if (eff.type === "dealDamageToConditioned" && eff.condition) {
       const p = s.players[opponent];
       let newUnits = [...p.units];
-      newUnits = newUnits.map(u => {
+      newUnits = newUnits.map((u) => {
         if (hasCondition(u, eff.condition!)) {
           const { card } = applyDamageToCard(u, eff.value ?? 2, true);
           return card;
@@ -516,9 +801,16 @@ export function resolveOnSummonEffects(state: GameState, playerIdx: PlayerIndex,
       newPlayers[opponent] = { ...p, units: newUnits };
       s = { ...s, players: newPlayers };
       s = cleanDeadUnits(s, opponent);
-    } else if (eff.type === 'recoverFromDiscard') {
+    } else if (eff.type === "recoverFromDiscard") {
       if (playerIdx === 0) {
-        s = { ...s, pendingEffect: { type: 'selectTarget', sourceCard: unit, effect: eff } };
+        s = {
+          ...s,
+          pendingEffect: {
+            type: "selectTarget",
+            sourceCard: unit,
+            effect: eff,
+          },
+        };
       } else {
         s = aiRecoverFromDiscard(s, playerIdx, eff);
       }
@@ -528,51 +820,100 @@ export function resolveOnSummonEffects(state: GameState, playerIdx: PlayerIndex,
   return s;
 }
 
-export function searchCardEffect(state: GameState, playerIdx: PlayerIndex, eff: CardEffect): GameState {
+export function searchCardEffect(
+  state: GameState,
+  playerIdx: PlayerIndex,
+  eff: CardEffect,
+): GameState {
   const player = state.players[playerIdx];
   let found: CardDefinition | undefined;
 
   if (eff.cardName) {
-    found = player.deck.find(c => c.name === eff.cardName);
+    found = player.deck.find((c) => c.name === eff.cardName);
   } else if (eff.cardType) {
-    found = player.deck.find(c => c.type === eff.cardType);
+    found = player.deck.find((c) => c.type === eff.cardType);
   }
 
   if (!found) {
-    return { ...state, log: [...state.log, `Busca: ${eff.cardName || eff.cardType} não encontrado.`] };
+    return {
+      ...state,
+      log: [
+        ...state.log,
+        `Busca: ${eff.cardName || eff.cardType} não encontrado.`,
+      ],
+    };
   }
 
-  const newDeck = player.deck.filter(c => c !== found);
+  const newDeck = player.deck.filter((c) => c !== found);
   const newPlayers = [...state.players] as [PlayerState, PlayerState];
-  newPlayers[playerIdx] = { ...player, deck: shuffle(newDeck), hand: [...player.hand, found!] };
-  return { ...state, players: newPlayers, log: [...state.log, `Buscou ${found!.name} para a mão.`] };
+  newPlayers[playerIdx] = {
+    ...player,
+    deck: shuffle(newDeck),
+    hand: [...player.hand, found!],
+  };
+  return {
+    ...state,
+    players: newPlayers,
+    log: [...state.log, `Buscou ${found!.name} para a mão.`],
+  };
 }
 
-function aiRecoverFromDiscard(state: GameState, playerIdx: PlayerIndex, eff: CardEffect): GameState {
+function aiRecoverFromDiscard(
+  state: GameState,
+  playerIdx: PlayerIndex,
+  eff: CardEffect,
+): GameState {
   const player = state.players[playerIdx];
-  const target = player.discard.find(c => !eff.cardType || c.type === eff.cardType);
+  const target = player.discard.find(
+    (c) => !eff.cardType || c.type === eff.cardType,
+  );
   if (!target) return state;
-  const newDiscard = player.discard.filter(c => c !== target);
+  const newDiscard = player.discard.filter((c) => c !== target);
   const newPlayers = [...state.players] as [PlayerState, PlayerState];
-  newPlayers[playerIdx] = { ...player, discard: newDiscard, deck: shuffle([...player.deck, target]) };
-  return { ...state, players: newPlayers, log: [...state.log, `${pi(playerIdx)} recupera ${target.name} do descarte.`] };
+  newPlayers[playerIdx] = {
+    ...player,
+    discard: newDiscard,
+    deck: shuffle([...player.deck, target]),
+  };
+  let s = {
+    ...state,
+    players: newPlayers,
+    log: [
+      ...state.log,
+      `${pi(playerIdx)} recupera ${target.name} do descarte.`,
+    ],
+  };
+  s = processRecoverFromDiscardTriggers(s, playerIdx, target);
+  return s;
 }
 
-export function playTerrain(state: GameState, playerIdx: PlayerIndex, cardDef: CardDefinition): GameState {
+export function playTerrain(
+  state: GameState,
+  playerIdx: PlayerIndex,
+  cardDef: CardDefinition,
+): GameState {
   const player = state.players[playerIdx];
   if (player.mana < cardDef.manaCost) return state;
 
   let removed = false;
-  const filteredHand = player.hand.filter(c => {
-    if (!removed && c.id === cardDef.id) { removed = true; return false; }
+  const filteredHand = player.hand.filter((c) => {
+    if (!removed && c.id === cardDef.id) {
+      removed = true;
+      return false;
+    }
     return true;
   });
 
   const terrain = createBattleCard(cardDef);
   const oldTerrain = player.terrain;
-  const newDiscard = oldTerrain ? [...player.discard, getCardById(oldTerrain.cardId)!].filter(Boolean) : [...player.discard];
+  const newDiscard = oldTerrain
+    ? [...player.discard, getCardById(oldTerrain.cardId)!].filter(Boolean)
+    : [...player.discard];
 
-  const playerWithoutOldBonuses = revertTerrainStatBonuses({ ...player, terrain: null });
+  const playerWithoutOldBonuses = revertTerrainStatBonuses({
+    ...player,
+    terrain: null,
+  });
 
   const newPlayers = [...state.players] as [PlayerState, PlayerState];
   newPlayers[playerIdx] = {
@@ -581,139 +922,256 @@ export function playTerrain(state: GameState, playerIdx: PlayerIndex, cardDef: C
     terrain,
     discard: newDiscard,
     mana: player.mana - cardDef.manaCost,
-    unitSlotBonus: cardDef.name === 'Campo Grande' ? 1 : 0,
+    unitSlotBonus: cardDef.name === "Campo Grande" ? 1 : 0,
   };
 
-  return { ...state, players: newPlayers, log: [...state.log, `${pi(playerIdx)} ativa terreno ${cardDef.name}.`] };
+  return {
+    ...state,
+    players: newPlayers,
+    log: [...state.log, `${pi(playerIdx)} ativa terreno ${cardDef.name}.`],
+  };
 }
 
-export function playSpell(state: GameState, playerIdx: PlayerIndex, cardDef: CardDefinition, targetId?: string): GameState {
+export function playSpell(
+  state: GameState,
+  playerIdx: PlayerIndex,
+  cardDef: CardDefinition,
+  targetId?: string,
+): GameState {
   const player = state.players[playerIdx];
   if (player.mana < cardDef.manaCost) return state;
 
   let removed = false;
-  const filteredHand = player.hand.filter(c => {
-    if (!removed && c.id === cardDef.id) { removed = true; return false; }
+  const filteredHand = player.hand.filter((c) => {
+    if (!removed && c.id === cardDef.id) {
+      removed = true;
+      return false;
+    }
     return true;
   });
 
   const newDiscard = [...player.discard, cardDef];
   const newPlayers = [...state.players] as [PlayerState, PlayerState];
-  newPlayers[playerIdx] = { ...player, hand: filteredHand, discard: newDiscard, mana: player.mana - cardDef.manaCost };
-  let s = { ...state, players: newPlayers, log: [...state.log, `${pi(playerIdx)} usa feitiço ${cardDef.name}.`] };
+  newPlayers[playerIdx] = {
+    ...player,
+    hand: filteredHand,
+    discard: newDiscard,
+    mana: player.mana - cardDef.manaCost,
+  };
+  let s = {
+    ...state,
+    players: newPlayers,
+    log: [...state.log, `${pi(playerIdx)} usa feitiço ${cardDef.name}.`],
+  };
 
   s = resolveSpellEffects(s, playerIdx, cardDef, targetId);
   return s;
 }
 
-export function resolveSpellEffects(state: GameState, playerIdx: PlayerIndex, cardDef: CardDefinition, targetId?: string): GameState {
+export function resolveSpellEffects(
+  state: GameState,
+  playerIdx: PlayerIndex,
+  cardDef: CardDefinition,
+  targetId?: string,
+): GameState {
   let s = state;
   const opponent = (1 - playerIdx) as PlayerIndex;
 
   for (const eff of cardDef.effects) {
-    if (eff.timing !== 'onPlay') continue;
+    if (eff.timing !== "onPlay") continue;
 
-    if (eff.type === 'damage' || (eff.type === 'applyCondition' && eff.target === 'anyUnit')) {
+    if (
+      eff.type === "damage" ||
+      (eff.type === "applyCondition" && eff.target === "anyUnit")
+    ) {
       if (!targetId) {
-        s = { ...s, pendingEffect: { type: 'selectTarget', sourceCard: cardDef, effect: eff } };
+        s = {
+          ...s,
+          pendingEffect: {
+            type: "selectTarget",
+            sourceCard: cardDef,
+            effect: eff,
+          },
+        };
         return s;
       }
-      if (eff.type === 'damage') s = dealDamageToTarget(s, targetId, eff.value ?? 0, playerIdx);
-      if (eff.type === 'applyCondition' && eff.condition) s = applyConditionToTarget(s, targetId, eff.condition);
+      if (eff.type === "damage")
+        s = dealDamageToTarget(s, targetId, eff.value ?? 0, playerIdx);
+      if (eff.type === "applyCondition" && eff.condition)
+        s = applyConditionToTarget(s, targetId, eff.condition);
     }
 
-    if (eff.type === 'heal' && eff.target === 'anyUnit') {
+    if (eff.type === "heal" && eff.target === "anyUnit") {
       if (!targetId) {
-        s = { ...s, pendingEffect: { type: 'selectTarget', sourceCard: cardDef, effect: eff } };
+        s = {
+          ...s,
+          pendingEffect: {
+            type: "selectTarget",
+            sourceCard: cardDef,
+            effect: eff,
+          },
+        };
         return s;
       }
       s = healTarget(s, targetId, eff.value ?? 0, playerIdx);
     }
 
-    if (eff.type === 'heal' && eff.target === 'ally') {
+    if (eff.type === "heal" && eff.target === "ally") {
       if (!targetId) {
-        s = { ...s, pendingEffect: { type: 'selectTarget', sourceCard: cardDef, effect: eff } };
+        s = {
+          ...s,
+          pendingEffect: {
+            type: "selectTarget",
+            sourceCard: cardDef,
+            effect: eff,
+          },
+        };
         return s;
       }
       s = healTarget(s, targetId, eff.value ?? 0, playerIdx);
     }
 
-    if (eff.type === 'damageAllUnits') {
+    if (eff.type === "damageAllUnits") {
       s = damageAllUnits(s, eff.value ?? 0, opponent);
     }
 
-    if (eff.type === 'healAllUnits') {
+    if (eff.type === "healAllUnits") {
       s = healAllUnits(s, eff.value ?? 0, playerIdx);
     }
 
-    if (eff.type === 'applyConditionAllUnits' && eff.condition) {
-      s = applyConditionAllUnits(s, eff.condition, eff.target === 'allEnemies' ? opponent : playerIdx);
+    if (eff.type === "applyConditionAllUnits" && eff.condition) {
+      s = applyConditionAllUnits(
+        s,
+        eff.condition,
+        eff.target === "allEnemies" ? opponent : playerIdx,
+      );
     }
 
-    if (eff.type === 'removeAllNegativeConditions') {
+    if (eff.type === "removeAllNegativeConditions") {
       s = removeAllNegativeConditionsFromAll(s, playerIdx);
     }
 
-    if (eff.type === 'drawCard' && eff.value) {
+    if (eff.type === "drawCard" && eff.value) {
       for (let i = 0; i < eff.value; i++) s = drawCard(s, playerIdx);
     }
 
-    if (eff.type === 'recoverFromDiscard') {
-      s = { ...s, pendingEffect: { type: 'selectTarget', sourceCard: cardDef, effect: eff } };
+    if (eff.type === "recoverFromDiscard") {
+      s = {
+        ...s,
+        pendingEffect: {
+          type: "selectTarget",
+          sourceCard: cardDef,
+          effect: eff,
+        },
+      };
       return s;
     }
 
-    if (eff.type === 'destroyTerrain') {
+    if (eff.type === "destroyTerrain") {
       const opp = s.players[opponent];
       if (opp.terrain) {
         const terrainDef = getCardById(opp.terrain.cardId);
         const newPlayers = [...s.players] as [PlayerState, PlayerState];
-        const oppWithoutTerrain = { ...opp, terrain: null, discard: terrainDef ? [...opp.discard, terrainDef] : opp.discard, unitSlotBonus: 0 };
+        const oppWithoutTerrain = {
+          ...opp,
+          terrain: null,
+          discard: terrainDef ? [...opp.discard, terrainDef] : opp.discard,
+          unitSlotBonus: 0,
+        };
         newPlayers[opponent] = revertTerrainStatBonuses(oppWithoutTerrain);
-        s = { ...s, players: newPlayers, log: [...s.log, `Terreno do oponente destruído!`] };
+        s = {
+          ...s,
+          players: newPlayers,
+          log: [...s.log, `Terreno do oponente destruído!`],
+        };
       }
     }
 
-    if (eff.type === 'attackAgain') {
+    if (eff.type === "attackAgain") {
       if (!targetId) {
-        s = { ...s, pendingEffect: { type: 'selectAllyUnit', sourceCard: cardDef, effect: eff } };
+        s = {
+          ...s,
+          pendingEffect: {
+            type: "selectAllyUnit",
+            sourceCard: cardDef,
+            effect: eff,
+          },
+        };
         return s;
       }
     }
 
-    if (eff.type === 'allUnitsAttackTwice') {
+    if (eff.type === "allUnitsAttackTwice") {
       const newPlayers = [...s.players] as [PlayerState, PlayerState];
       const p = s.players[playerIdx];
-      const newUnits = p.units.map(u => ({ ...u, exhausted: false }));
-      newPlayers[playerIdx] = { ...p, units: newUnits, hero: { ...p.hero, exhausted: false } };
-      s = { ...s, players: newPlayers, extraAttackPhase: true, log: [...s.log, 'Todas as unidades podem atacar novamente!'] };
+      const newUnits = p.units.map((u) => ({ ...u, exhausted: false }));
+      newPlayers[playerIdx] = {
+        ...p,
+        units: newUnits,
+        hero: { ...p.hero, exhausted: false },
+      };
+      s = {
+        ...s,
+        players: newPlayers,
+        extraAttackPhase: true,
+        log: [...s.log, "Todas as unidades podem atacar novamente!"],
+      };
     }
 
-    if (eff.type === 'bonusAttackPerDamageTaken' && eff.target === 'ally') {
+    if (eff.type === "bonusAttackPerDamageTaken" && eff.target === "ally") {
       if (!targetId) {
-        s = { ...s, pendingEffect: { type: 'selectAllyUnit', sourceCard: cardDef, effect: eff } };
+        s = {
+          ...s,
+          pendingEffect: {
+            type: "selectAllyUnit",
+            sourceCard: cardDef,
+            effect: eff,
+          },
+        };
         return s;
       }
     }
 
-    if (eff.type === 'recoverEquipmentDurability' && eff.value) {
+    if (eff.type === "recoverEquipmentDurability" && eff.value) {
       const newPlayers = [...s.players] as [PlayerState, PlayerState];
       const p = s.players[playerIdx];
       let recovered = false;
 
-      if (p.hero.equipment && p.hero.equipment.currentDurability < p.hero.equipment.maxDurability) {
-        const newDur = Math.min(p.hero.equipment.maxDurability, p.hero.equipment.currentDurability + eff.value);
+      if (
+        p.hero.equipment &&
+        p.hero.equipment.currentDurability < p.hero.equipment.maxDurability
+      ) {
+        const newDur = Math.min(
+          p.hero.equipment.maxDurability,
+          p.hero.equipment.currentDurability + eff.value,
+        );
         newPlayers[playerIdx] = {
           ...p,
-          hero: { ...p.hero, equipment: { ...p.hero.equipment, currentDurability: newDur } }
+          hero: {
+            ...p.hero,
+            equipment: { ...p.hero.equipment, currentDurability: newDur },
+          },
         };
         recovered = true;
       } else {
         for (let i = 0; i < p.units.length; i++) {
-          if (p.units[i].equipment && p.units[i].equipment!.currentDurability < p.units[i].equipment!.maxDurability) {
-            const newDur = Math.min(p.units[i].equipment!.maxDurability, p.units[i].equipment!.currentDurability + eff.value);
+          if (
+            p.units[i].equipment &&
+            p.units[i].equipment!.currentDurability <
+              p.units[i].equipment!.maxDurability
+          ) {
+            const newDur = Math.min(
+              p.units[i].equipment!.maxDurability,
+              p.units[i].equipment!.currentDurability + eff.value,
+            );
             const newUnits = [...p.units];
-            newUnits[i] = { ...p.units[i], equipment: { ...p.units[i].equipment!, currentDurability: newDur } };
+            newUnits[i] = {
+              ...p.units[i],
+              equipment: {
+                ...p.units[i].equipment!,
+                currentDurability: newDur,
+              },
+            };
             newPlayers[playerIdx] = { ...p, units: newUnits };
             recovered = true;
             break;
@@ -722,15 +1180,29 @@ export function resolveSpellEffects(state: GameState, playerIdx: PlayerIndex, ca
       }
 
       if (recovered) {
-        s = { ...s, players: newPlayers, log: [...s.log, `Durabilidade do equipamento recuperada.`] };
+        s = {
+          ...s,
+          players: newPlayers,
+          log: [...s.log, `Durabilidade do equipamento recuperada.`],
+        };
       } else {
-        s = { ...s, log: [...s.log, `Nenhum equipamento elegível para reparo.`] };
+        s = {
+          ...s,
+          log: [...s.log, `Nenhum equipamento elegível para reparo.`],
+        };
       }
     }
 
-    if (eff.type === 'removeCondition') {
+    if (eff.type === "removeCondition") {
       if (!targetId) {
-        s = { ...s, pendingEffect: { type: 'selectTarget', sourceCard: cardDef, effect: eff } };
+        s = {
+          ...s,
+          pendingEffect: {
+            type: "selectTarget",
+            sourceCard: cardDef,
+            effect: eff,
+          },
+        };
         return s;
       }
       const player = s.players[playerIdx];
@@ -738,7 +1210,11 @@ export function resolveSpellEffects(state: GameState, playerIdx: PlayerIndex, ca
         const newHero = removeAllNegativeConditions(player.hero);
         const newPlayers = [...s.players] as [PlayerState, PlayerState];
         newPlayers[playerIdx] = { ...player, hero: newHero };
-        s = { ...s, players: newPlayers, log: [...s.log, `Condições negativas removidas de ${newHero.name}.`] };
+        s = {
+          ...s,
+          players: newPlayers,
+          log: [...s.log, `Condições negativas removidas de ${newHero.name}.`],
+        };
       } else {
         for (let i = 0; i < player.units.length; i++) {
           if (player.units[i].instanceId === targetId) {
@@ -747,7 +1223,14 @@ export function resolveSpellEffects(state: GameState, playerIdx: PlayerIndex, ca
             newUnits[i] = newUnit;
             const newPlayers = [...s.players] as [PlayerState, PlayerState];
             newPlayers[playerIdx] = { ...player, units: newUnits };
-            s = { ...s, players: newPlayers, log: [...s.log, `Condições negativas removidas de ${newUnit.name}.`] };
+            s = {
+              ...s,
+              players: newPlayers,
+              log: [
+                ...s.log,
+                `Condições negativas removidas de ${newUnit.name}.`,
+              ],
+            };
             break;
           }
         }
@@ -758,19 +1241,34 @@ export function resolveSpellEffects(state: GameState, playerIdx: PlayerIndex, ca
   return s;
 }
 
-function processOnDefendEquipment(state: GameState, targetId: string, defenderIdx: PlayerIndex): GameState {
+function processOnDefendEquipment(
+  state: GameState,
+  targetId: string,
+  defenderIdx: PlayerIndex,
+): GameState {
   const player = state.players[defenderIdx];
   let s = state;
 
   const processCard = (card: BattleCard): BattleCard => {
-    if (card.instanceId !== targetId || !card.equipment || card.equipment.currentDurability <= 0) return card;
+    if (
+      card.instanceId !== targetId ||
+      !card.equipment ||
+      card.equipment.currentDurability <= 0
+    )
+      return card;
     const eq = card.equipment;
-    const onDefendEff = eq.effects.find(e => e.timing === 'onDefend');
+    const onDefendEff = eq.effects.find((e) => e.timing === "onDefend");
     if (!onDefendEff) return card;
 
     let newCard = card;
-    if (onDefendEff.type === 'defenseBonus' && onDefendEff.value) {
-      s = { ...s, log: [...s.log, `${eq.name} concede +${onDefendEff.value} DEF a ${newCard.name}.`] };
+    if (onDefendEff.type === "defenseBonus" && onDefendEff.value) {
+      s = {
+        ...s,
+        log: [
+          ...s.log,
+          `${eq.name} concede +${onDefendEff.value} DEF a ${newCard.name}.`,
+        ],
+      };
     }
 
     const newDur = eq.currentDurability - 1;
@@ -779,7 +1277,10 @@ function processOnDefendEquipment(state: GameState, targetId: string, defenderId
       s = { ...s, log: [...s.log, `${eq.name} destruído!`] };
       const newDiscard = eqDef ? [...player.discard, eqDef] : player.discard;
       const newPlayers = [...s.players] as [PlayerState, PlayerState];
-      newPlayers[defenderIdx] = { ...newPlayers[defenderIdx], discard: newDiscard };
+      newPlayers[defenderIdx] = {
+        ...newPlayers[defenderIdx],
+        discard: newDiscard,
+      };
       s = { ...s, players: newPlayers };
       const { equipment, ...cardWithoutEquipment } = newCard;
       return cardWithoutEquipment;
@@ -791,17 +1292,28 @@ function processOnDefendEquipment(state: GameState, targetId: string, defenderId
   const newUnits = player.units.map(processCard);
 
   const newPlayers = [...s.players] as [PlayerState, PlayerState];
-  newPlayers[defenderIdx] = { ...newPlayers[defenderIdx], hero: newHero, units: newUnits };
+  newPlayers[defenderIdx] = {
+    ...newPlayers[defenderIdx],
+    hero: newHero,
+    units: newUnits,
+  };
   return { ...s, players: newPlayers };
 }
 
 function getDefenseBonus(card: BattleCard): number {
   if (!card.equipment || card.equipment.currentDurability <= 0) return 0;
-  const eff = card.equipment.effects.find(e => e.type === 'defenseBonus' && e.timing === 'onDefend');
+  const eff = card.equipment.effects.find(
+    (e) => e.type === "defenseBonus" && e.timing === "onDefend",
+  );
   return eff?.value ?? 0;
 }
 
-export function dealDamageToTarget(state: GameState, targetId: string, damage: number, attackerPlayerIdx: PlayerIndex): GameState {
+export function dealDamageToTarget(
+  state: GameState,
+  targetId: string,
+  damage: number,
+  attackerPlayerIdx: PlayerIndex,
+): GameState {
   let s = state;
 
   for (const pi2 of [0, 1] as PlayerIndex[]) {
@@ -812,7 +1324,16 @@ export function dealDamageToTarget(state: GameState, targetId: string, damage: n
       const { card, destroyed } = applyDamageToCard(p.hero, finalDamage);
       const newPlayers = [...s.players] as [PlayerState, PlayerState];
       newPlayers[pi2] = { ...p, hero: card };
-      s = { ...s, players: newPlayers, log: [...s.log, `${card.name} recebe ${finalDamage} de dano${reduction > 0 ? ` (reduzido por escudo: -${reduction})` : ''}. HP: ${card.currentHealth}`] };
+      s = {
+        ...s,
+        players: newPlayers,
+        log: [
+          ...s.log,
+          `${card.name} recebe ${finalDamage} de dano${reduction > 0 ? ` (reduzido por escudo: -${reduction})` : ""}. HP: ${card.currentHealth}`,
+        ],
+      };
+      if (finalDamage > 0)
+        s = processDamageDealtTriggers(s, attackerPlayerIdx, targetId);
       s = processOnDefendEquipment(s, targetId, pi2);
       s = checkGameOver(s);
       return s;
@@ -826,7 +1347,16 @@ export function dealDamageToTarget(state: GameState, targetId: string, damage: n
         newUnits[i] = card;
         const newPlayers = [...s.players] as [PlayerState, PlayerState];
         newPlayers[pi2] = { ...p, units: newUnits };
-        s = { ...s, players: newPlayers, log: [...s.log, `${card.name} recebe ${finalDamage} de dano${reduction > 0 ? ` (reduzido por escudo: -${reduction})` : ''}. HP: ${card.currentHealth}`] };
+        s = {
+          ...s,
+          players: newPlayers,
+          log: [
+            ...s.log,
+            `${card.name} recebe ${finalDamage} de dano${reduction > 0 ? ` (reduzido por escudo: -${reduction})` : ""}. HP: ${card.currentHealth}`,
+          ],
+        };
+        if (finalDamage > 0)
+          s = processDamageDealtTriggers(s, attackerPlayerIdx, targetId);
         s = processOnDefendEquipment(s, targetId, pi2);
         s = cleanDeadUnits(s, pi2);
         return s;
@@ -836,31 +1366,98 @@ export function dealDamageToTarget(state: GameState, targetId: string, damage: n
   return s;
 }
 
-export function healTarget(state: GameState, targetId: string, amount: number, healerIdx: PlayerIndex): GameState {
+function processDamageDealtTriggers(
+  state: GameState,
+  attackerPlayerIdx: PlayerIndex,
+  targetId: string,
+): GameState {
+  const terrain = state.players[attackerPlayerIdx].terrain;
+  const poisonEffect = terrain?.effects.find(
+    (e) => e.type === "poisonOnDamage" && e.condition,
+  );
+  if (!poisonEffect) return state;
+  const s = applyConditionToTarget(state, targetId, poisonEffect.condition!);
+  return {
+    ...s,
+    log: [...s.log, `${terrain?.name}: alvo recebe ${poisonEffect.condition}.`],
+  };
+}
+
+function processRecoverFromDiscardTriggers(
+  state: GameState,
+  playerIdx: PlayerIndex,
+  recoveredCard: CardDefinition,
+): GameState {
+  const player = state.players[playerIdx];
+  const drawEffect = player.terrain?.effects.find(
+    (e) => e.type === "drawOnRecoverUnit" && e.value,
+  );
+  if (!drawEffect || recoveredCard.type !== "unit") return state;
+  let s = state;
+  for (let i = 0; i < (drawEffect.value ?? 1); i++) s = drawCard(s, playerIdx);
+  return {
+    ...s,
+    log: [
+      ...s.log,
+      `${player.terrain?.name}: comprou carta ao recuperar unidade.`,
+    ],
+  };
+}
+
+export function healTarget(
+  state: GameState,
+  targetId: string,
+  amount: number,
+  healerIdx: PlayerIndex,
+): GameState {
   let s = state;
   for (const pi2 of [0, 1] as PlayerIndex[]) {
     const p = s.players[pi2];
     if (p.hero.instanceId === targetId) {
-      const newHero = { ...p.hero, currentHealth: Math.min(p.hero.maxHealth, p.hero.currentHealth + amount) };
+      const newHero = {
+        ...p.hero,
+        currentHealth: Math.min(
+          p.hero.maxHealth,
+          p.hero.currentHealth + amount,
+        ),
+      };
       const newPlayers = [...s.players] as [PlayerState, PlayerState];
       newPlayers[pi2] = { ...p, hero: newHero };
-      return { ...s, players: newPlayers, log: [...s.log, `${newHero.name} recupera ${amount} de vida.`] };
+      return {
+        ...s,
+        players: newPlayers,
+        log: [...s.log, `${newHero.name} recupera ${amount} de vida.`],
+      };
     }
     for (let i = 0; i < p.units.length; i++) {
       if (p.units[i].instanceId === targetId) {
-        const newCard = { ...p.units[i], currentHealth: Math.min(p.units[i].maxHealth, p.units[i].currentHealth + amount) };
+        const newCard = {
+          ...p.units[i],
+          currentHealth: Math.min(
+            p.units[i].maxHealth,
+            p.units[i].currentHealth + amount,
+          ),
+        };
         const newUnits = [...p.units];
         newUnits[i] = newCard;
         const newPlayers = [...s.players] as [PlayerState, PlayerState];
         newPlayers[pi2] = { ...p, units: newUnits };
-        return { ...s, players: newPlayers, log: [...s.log, `${newCard.name} recupera ${amount} de vida.`] };
+        return {
+          ...s,
+          players: newPlayers,
+          log: [...s.log, `${newCard.name} recupera ${amount} de vida.`],
+        };
       }
     }
   }
   return s;
 }
 
-export function applyConditionToTarget(state: GameState, targetId: string, condition: ConditionName): GameState {
+export function applyConditionToTarget(
+  state: GameState,
+  targetId: string,
+  condition: ConditionName,
+): GameState {
   let s = state;
   for (const pi2 of [0, 1] as PlayerIndex[]) {
     const p = s.players[pi2];
@@ -868,7 +1465,11 @@ export function applyConditionToTarget(state: GameState, targetId: string, condi
       const newHero = applyCondition(p.hero, condition);
       const newPlayers = [...s.players] as [PlayerState, PlayerState];
       newPlayers[pi2] = { ...p, hero: newHero };
-      return { ...s, players: newPlayers, log: [...s.log, `${newHero.name} recebe condição ${condition}.`] };
+      return {
+        ...s,
+        players: newPlayers,
+        log: [...s.log, `${newHero.name} recebe condição ${condition}.`],
+      };
     }
     for (let i = 0; i < p.units.length; i++) {
       if (p.units[i].instanceId === targetId) {
@@ -877,67 +1478,126 @@ export function applyConditionToTarget(state: GameState, targetId: string, condi
         newUnits[i] = newCard;
         const newPlayers = [...s.players] as [PlayerState, PlayerState];
         newPlayers[pi2] = { ...p, units: newUnits };
-        return { ...s, players: newPlayers, log: [...s.log, `${newCard.name} recebe condição ${condition}.`] };
+        return {
+          ...s,
+          players: newPlayers,
+          log: [...s.log, `${newCard.name} recebe condição ${condition}.`],
+        };
       }
     }
   }
   return s;
 }
 
-export function damageAllUnits(state: GameState, damage: number, targetPlayerIdx: PlayerIndex): GameState {
+export function damageAllUnits(
+  state: GameState,
+  damage: number,
+  targetPlayerIdx: PlayerIndex,
+): GameState {
   const p = state.players[targetPlayerIdx];
-  let newUnits = p.units.map(u => {
+  let newUnits = p.units.map((u) => {
     const { card } = applyDamageToCard(u, damage);
     return card;
   });
   const newPlayers = [...state.players] as [PlayerState, PlayerState];
   newPlayers[targetPlayerIdx] = { ...p, units: newUnits };
-  let s = { ...state, players: newPlayers, log: [...state.log, `Feitiço em área: ${damage} de dano a todas as unidades inimigas.`] };
+  let s = {
+    ...state,
+    players: newPlayers,
+    log: [
+      ...state.log,
+      `Feitiço em área: ${damage} de dano a todas as unidades inimigas.`,
+    ],
+  };
   s = cleanDeadUnits(s, targetPlayerIdx);
   return s;
 }
 
-export function healAllUnits(state: GameState, amount: number, playerIdx: PlayerIndex): GameState {
+export function healAllUnits(
+  state: GameState,
+  amount: number,
+  playerIdx: PlayerIndex,
+): GameState {
   const p = state.players[playerIdx];
-  const newUnits = p.units.map(u => ({ ...u, currentHealth: Math.min(u.maxHealth, u.currentHealth + amount) }));
+  const newUnits = p.units.map((u) => ({
+    ...u,
+    currentHealth: Math.min(u.maxHealth, u.currentHealth + amount),
+  }));
   const newPlayers = [...state.players] as [PlayerState, PlayerState];
   newPlayers[playerIdx] = { ...p, units: newUnits };
-  return { ...state, players: newPlayers, log: [...state.log, `Feitiço em área: ${amount} de cura a todas as unidades aliadas.`] };
+  return {
+    ...state,
+    players: newPlayers,
+    log: [
+      ...state.log,
+      `Feitiço em área: ${amount} de cura a todas as unidades aliadas.`,
+    ],
+  };
 }
 
-export function applyConditionAllUnits(state: GameState, condition: ConditionName, playerIdx: PlayerIndex): GameState {
+export function applyConditionAllUnits(
+  state: GameState,
+  condition: ConditionName,
+  playerIdx: PlayerIndex,
+): GameState {
   const p = state.players[playerIdx];
-  const newUnits = p.units.map(u => applyCondition(u, condition));
+  const newUnits = p.units.map((u) => applyCondition(u, condition));
   const newPlayers = [...state.players] as [PlayerState, PlayerState];
   newPlayers[playerIdx] = { ...p, units: newUnits };
-  return { ...state, players: newPlayers, log: [...state.log, `Condição ${condition} aplicada a todas as unidades.`] };
+  return {
+    ...state,
+    players: newPlayers,
+    log: [...state.log, `Condição ${condition} aplicada a todas as unidades.`],
+  };
 }
 
-export function removeAllNegativeConditionsFromAll(state: GameState, playerIdx: PlayerIndex): GameState {
+export function removeAllNegativeConditionsFromAll(
+  state: GameState,
+  playerIdx: PlayerIndex,
+): GameState {
   const p = state.players[playerIdx];
-  const newUnits = p.units.map(u => removeAllNegativeConditions(u));
+  const newUnits = p.units.map((u) => removeAllNegativeConditions(u));
   const newHero = removeAllNegativeConditions(p.hero);
   const newPlayers = [...state.players] as [PlayerState, PlayerState];
   newPlayers[playerIdx] = { ...p, units: newUnits, hero: newHero };
-  return { ...state, players: newPlayers, log: [...state.log, `Condições negativas removidas de todos os aliados.`] };
+  return {
+    ...state,
+    players: newPlayers,
+    log: [...state.log, `Condições negativas removidas de todos os aliados.`],
+  };
 }
 
-export function attachEquipment(state: GameState, playerIdx: PlayerIndex, cardDef: CardDefinition, targetId: string): GameState {
+export function attachEquipment(
+  state: GameState,
+  playerIdx: PlayerIndex,
+  cardDef: CardDefinition,
+  targetId: string,
+): GameState {
   const player = state.players[playerIdx];
   if (player.mana < cardDef.manaCost) return state;
+  if (cardDef.heroOnly && player.hero.instanceId !== targetId) {
+    return {
+      ...state,
+      log: [...state.log, `${cardDef.name} só pode ser equipado no herói!`],
+    };
+  }
 
   // Check if target already has equipment
-  const hasEquipment = player.hero.instanceId === targetId
-    ? !!player.hero.equipment
-    : player.units.some(u => u.instanceId === targetId && u.equipment);
+  const hasEquipment =
+    player.hero.instanceId === targetId
+      ? !!player.hero.equipment
+      : player.units.some((u) => u.instanceId === targetId && u.equipment);
 
   if (hasEquipment) {
     return { ...state, log: [...state.log, `Alvo já possui um equipamento!`] };
   }
 
   let removed = false;
-  const filteredHand = player.hand.filter(c => {
-    if (!removed && c.id === cardDef.id) { removed = true; return false; }
+  const filteredHand = player.hand.filter((c) => {
+    if (!removed && c.id === cardDef.id) {
+      removed = true;
+      return false;
+    }
     return true;
   });
 
@@ -969,26 +1629,51 @@ export function attachEquipment(state: GameState, playerIdx: PlayerIndex, cardDe
   if (!found) return state;
 
   const newPlayers = [...state.players] as [PlayerState, PlayerState];
-  newPlayers[playerIdx] = { ...player, hand: filteredHand, hero: newHero, units: newUnits, mana: player.mana - cardDef.manaCost };
-  return { ...state, players: newPlayers, log: [...state.log, `${pi(playerIdx)} equipa ${cardDef.name}.`] };
+  newPlayers[playerIdx] = {
+    ...player,
+    hand: filteredHand,
+    hero: newHero,
+    units: newUnits,
+    mana: player.mana - cardDef.manaCost,
+  };
+  return {
+    ...state,
+    players: newPlayers,
+    log: [...state.log, `${pi(playerIdx)} equipa ${cardDef.name}.`],
+  };
 }
 
-export function attachMount(state: GameState, playerIdx: PlayerIndex, cardDef: CardDefinition, targetId: string): GameState {
+export function attachMount(
+  state: GameState,
+  playerIdx: PlayerIndex,
+  cardDef: CardDefinition,
+  targetId: string,
+): GameState {
   const player = state.players[playerIdx];
   if (player.mana < cardDef.manaCost) return state;
+  if (cardDef.heroOnly && player.hero.instanceId !== targetId) {
+    return {
+      ...state,
+      log: [...state.log, `${cardDef.name} só pode ser equipado no herói!`],
+    };
+  }
 
   // Check if target already has a mount
-  const hasMount = player.hero.instanceId === targetId
-    ? !!player.hero.mount
-    : player.units.some(u => u.instanceId === targetId && u.mount);
+  const hasMount =
+    player.hero.instanceId === targetId
+      ? !!player.hero.mount
+      : player.units.some((u) => u.instanceId === targetId && u.mount);
 
   if (hasMount) {
     return { ...state, log: [...state.log, `Alvo já possui uma montaria!`] };
   }
 
   let removed = false;
-  const filteredHand = player.hand.filter(c => {
-    if (!removed && c.id === cardDef.id) { removed = true; return false; }
+  const filteredHand = player.hand.filter((c) => {
+    if (!removed && c.id === cardDef.id) {
+      removed = true;
+      return false;
+    }
     return true;
   });
 
@@ -1020,11 +1705,26 @@ export function attachMount(state: GameState, playerIdx: PlayerIndex, cardDef: C
   if (!found) return state;
 
   const newPlayers = [...state.players] as [PlayerState, PlayerState];
-  newPlayers[playerIdx] = { ...player, hand: filteredHand, hero: newHero, units: newUnits, mana: player.mana - cardDef.manaCost };
-  return { ...state, players: newPlayers, log: [...state.log, `${pi(playerIdx)} monta ${cardDef.name}.`] };
+  newPlayers[playerIdx] = {
+    ...player,
+    hand: filteredHand,
+    hero: newHero,
+    units: newUnits,
+    mana: player.mana - cardDef.manaCost,
+  };
+  return {
+    ...state,
+    players: newPlayers,
+    log: [...state.log, `${pi(playerIdx)} monta ${cardDef.name}.`],
+  };
 }
 
-export function resolveAttack(state: GameState, attackerPlayerIdx: PlayerIndex, attackerIds: string[], targetId: string): GameState {
+export function resolveAttack(
+  state: GameState,
+  attackerPlayerIdx: PlayerIndex,
+  attackerIds: string[],
+  targetId: string,
+): GameState {
   const attackerPlayer = state.players[attackerPlayerIdx];
   const defenderPlayerIdx = (1 - attackerPlayerIdx) as PlayerIndex;
   const defenderPlayer = state.players[defenderPlayerIdx];
@@ -1037,7 +1737,7 @@ export function resolveAttack(state: GameState, attackerPlayerIdx: PlayerIndex, 
     if (attackerPlayer.hero.instanceId === aid) {
       attackers.push(attackerPlayer.hero);
     } else {
-      const u = attackerPlayer.units.find(u => u.instanceId === aid);
+      const u = attackerPlayer.units.find((u) => u.instanceId === aid);
       if (u) attackers.push(u);
     }
   }
@@ -1063,7 +1763,9 @@ export function resolveAttack(state: GameState, attackerPlayerIdx: PlayerIndex, 
     if (newHeroAtkr.instanceId === aid) {
       newHeroAtkr = { ...newHeroAtkr, exhausted: true };
       if (newHeroAtkr.equipment) {
-        const hasOnAttackEffect = newHeroAtkr.equipment.effects.some(e => e.timing === 'onAttack');
+        const hasOnAttackEffect = newHeroAtkr.equipment.effects.some(
+          (e) => e.timing === "onAttack",
+        );
         if (hasOnAttackEffect && newHeroAtkr.equipment.currentDurability > 0) {
           const newDur = newHeroAtkr.equipment.currentDurability - 1;
           if (newDur <= 0) {
@@ -1073,24 +1775,42 @@ export function resolveAttack(state: GameState, attackerPlayerIdx: PlayerIndex, 
             newPlayers2[attackerPlayerIdx] = {
               ...newAttackerPlayer,
               hero: newHeroAtkr,
-              discard: eqDef ? [...newAttackerPlayer.discard, eqDef] : newAttackerPlayer.discard,
+              discard: eqDef
+                ? [...newAttackerPlayer.discard, eqDef]
+                : newAttackerPlayer.discard,
             };
             s = { ...s, players: newPlayers2 };
           } else {
-            newHeroAtkr = { ...newHeroAtkr, equipment: { ...newHeroAtkr.equipment, currentDurability: newDur } };
+            newHeroAtkr = {
+              ...newHeroAtkr,
+              equipment: {
+                ...newHeroAtkr.equipment,
+                currentDurability: newDur,
+              },
+            };
           }
         }
       }
       if (newHeroAtkr.mount) {
-        const mountEff = newHeroAtkr.mount.effects.find(e => e.timing === 'onAttack');
+        const mountEff = newHeroAtkr.mount.effects.find(
+          (e) => e.timing === "onAttack",
+        );
         if (mountEff) {
-          if (mountEff.type === 'applyCondition' && mountEff.condition) {
-            s = applyConditionToTarget(s, targetId, mountEff.condition);
+          if (mountEff.type === "applyCondition" && mountEff.condition) {
+            s = applyConditionToTarget(
+              s,
+              mountEff.target === "self" ? aid : targetId,
+              mountEff.condition,
+            );
           }
           const newDur = newHeroAtkr.mount.currentDurability - 1;
-          newHeroAtkr = newDur <= 0
-            ? { ...newHeroAtkr, mount: undefined }
-            : { ...newHeroAtkr, mount: { ...newHeroAtkr.mount, currentDurability: newDur } };
+          newHeroAtkr =
+            newDur <= 0
+              ? { ...newHeroAtkr, mount: undefined }
+              : {
+                  ...newHeroAtkr,
+                  mount: { ...newHeroAtkr.mount, currentDurability: newDur },
+                };
         }
       }
     } else {
@@ -1098,31 +1818,61 @@ export function resolveAttack(state: GameState, attackerPlayerIdx: PlayerIndex, 
         if (newUnitsAtkr[i].instanceId === aid) {
           newUnitsAtkr[i] = { ...newUnitsAtkr[i], exhausted: true };
           if (newUnitsAtkr[i].equipment) {
-            const hasOnAttackEffect = newUnitsAtkr[i].equipment!.effects.some(e => e.timing === 'onAttack');
-            if (hasOnAttackEffect && newUnitsAtkr[i].equipment!.currentDurability > 0) {
+            const hasOnAttackEffect = newUnitsAtkr[i].equipment!.effects.some(
+              (e) => e.timing === "onAttack",
+            );
+            if (
+              hasOnAttackEffect &&
+              newUnitsAtkr[i].equipment!.currentDurability > 0
+            ) {
               const newDur = newUnitsAtkr[i].equipment!.currentDurability - 1;
               if (newDur <= 0) {
                 const eqDef = getCardById(newUnitsAtkr[i].equipment!.cardId);
                 newUnitsAtkr[i] = { ...newUnitsAtkr[i], equipment: undefined };
                 const np = s.players[attackerPlayerIdx];
-                const newPlayers2 = [...s.players] as [PlayerState, PlayerState];
-                newPlayers2[attackerPlayerIdx] = { ...np, discard: eqDef ? [...np.discard, eqDef] : np.discard };
+                const newPlayers2 = [...s.players] as [
+                  PlayerState,
+                  PlayerState,
+                ];
+                newPlayers2[attackerPlayerIdx] = {
+                  ...np,
+                  discard: eqDef ? [...np.discard, eqDef] : np.discard,
+                };
                 s = { ...s, players: newPlayers2 };
               } else {
-                newUnitsAtkr[i] = { ...newUnitsAtkr[i], equipment: { ...newUnitsAtkr[i].equipment!, currentDurability: newDur } };
+                newUnitsAtkr[i] = {
+                  ...newUnitsAtkr[i],
+                  equipment: {
+                    ...newUnitsAtkr[i].equipment!,
+                    currentDurability: newDur,
+                  },
+                };
               }
             }
           }
           if (newUnitsAtkr[i].mount) {
-            const mountEff = newUnitsAtkr[i].mount!.effects.find(e => e.timing === 'onAttack');
+            const mountEff = newUnitsAtkr[i].mount!.effects.find(
+              (e) => e.timing === "onAttack",
+            );
             if (mountEff) {
-              if (mountEff.type === 'applyCondition' && mountEff.condition) {
-                s = applyConditionToTarget(s, targetId, mountEff.condition);
+              if (mountEff.type === "applyCondition" && mountEff.condition) {
+                s = applyConditionToTarget(
+                  s,
+                  mountEff.target === "self" ? aid : targetId,
+                  mountEff.condition,
+                );
               }
               const newDur = newUnitsAtkr[i].mount!.currentDurability - 1;
-              newUnitsAtkr[i] = newDur <= 0
-                ? { ...newUnitsAtkr[i], mount: undefined }
-                : { ...newUnitsAtkr[i], mount: { ...newUnitsAtkr[i].mount!, currentDurability: newDur } };
+              newUnitsAtkr[i] =
+                newDur <= 0
+                  ? { ...newUnitsAtkr[i], mount: undefined }
+                  : {
+                      ...newUnitsAtkr[i],
+                      mount: {
+                        ...newUnitsAtkr[i].mount!,
+                        currentDurability: newDur,
+                      },
+                    };
             }
           }
         }
@@ -1131,24 +1881,33 @@ export function resolveAttack(state: GameState, attackerPlayerIdx: PlayerIndex, 
   }
 
   const finalPlayers = [...s.players] as [PlayerState, PlayerState];
-  finalPlayers[attackerPlayerIdx] = { ...s.players[attackerPlayerIdx], hero: newHeroAtkr, units: newUnitsAtkr };
+  finalPlayers[attackerPlayerIdx] = {
+    ...s.players[attackerPlayerIdx],
+    hero: newHeroAtkr,
+    units: newUnitsAtkr,
+  };
   s = { ...s, players: finalPlayers };
 
   // Restore defender DEF (it's a stat not temp reduction, so it's already base)
   return s;
 }
 
-export function canAttackTarget(state: GameState, attackerPlayerIdx: PlayerIndex, attacker: BattleCard, targetId: string): boolean {
+export function canAttackTarget(
+  state: GameState,
+  attackerPlayerIdx: PlayerIndex,
+  attacker: BattleCard,
+  targetId: string,
+): boolean {
   const defenderPlayerIdx = (1 - attackerPlayerIdx) as PlayerIndex;
   const defender = state.players[defenderPlayerIdx];
-  const hasReadyUnits = defender.units.some(u => !u.exhausted);
+  const hasReadyUnits = defender.units.some((u) => !u.exhausted);
 
   const targetIsHero = defender.hero.instanceId === targetId;
-  const targetIsUnit = defender.units.some(u => u.instanceId === targetId);
+  const targetIsUnit = defender.units.some((u) => u.instanceId === targetId);
 
   if (targetIsHero) {
     if (!hasReadyUnits) return true;
-    if (hasCondition(attacker, 'stealth')) return true;
+    if (hasCondition(attacker, "stealth")) return true;
     return false;
   }
 
@@ -1165,7 +1924,7 @@ export function endTurn(state: GameState): GameState {
     ...state,
     currentPlayer: nextPlayer,
     turnNumber: nextTurn,
-    phase: 'main' as GamePhase,
+    phase: "main" as GamePhase,
     firstPlayerCannotAttack: false,
     extraAttackPhase: false,
     log: [...state.log],
@@ -1174,53 +1933,129 @@ export function endTurn(state: GameState): GameState {
   return startTurn(s);
 }
 
-export function activateAbility(state: GameState, playerIdx: PlayerIndex, unitInstanceId: string): GameState {
+export function activateAbility(
+  state: GameState,
+  playerIdx: PlayerIndex,
+  unitInstanceId: string,
+): GameState {
   const player = state.players[playerIdx];
-  const unitIdx = player.units.findIndex(u => u.instanceId === unitInstanceId);
+  const unitIdx = player.units.findIndex(
+    (u) => u.instanceId === unitInstanceId,
+  );
   if (unitIdx < 0) return state;
   const unit = player.units[unitIdx];
   if (unit.exhausted) return state;
-  if (hasCondition(unit, 'silenced')) return { ...state, log: [...state.log, `${unit.name} está silenciado!`] };
+  if (hasCondition(unit, "silenced"))
+    return { ...state, log: [...state.log, `${unit.name} está silenciado!`] };
 
-  const activatedEffects = unit.effects.filter(e => e.timing === 'activated');
+  const activatedEffects = unit.effects.filter((e) => e.timing === "activated");
   if (activatedEffects.length === 0) return state;
 
   const newUnits = [...player.units];
   newUnits[unitIdx] = { ...unit, exhausted: true };
   const newPlayers = [...state.players] as [PlayerState, PlayerState];
   newPlayers[playerIdx] = { ...player, units: newUnits };
-  let s = { ...state, players: newPlayers, log: [...state.log, `${unit.name} ativa habilidade.`] };
+  let s = {
+    ...state,
+    players: newPlayers,
+    log: [...state.log, `${unit.name} ativa habilidade.`],
+  };
 
   for (const eff of activatedEffects) {
-    if (eff.type === 'recoverFromDiscard') {
+    if (eff.type === "recoverFromDiscard") {
       if (playerIdx === 0) {
-        s = { ...s, pendingEffect: { type: 'selectTarget', sourceCard: unit, effect: eff } };
+        s = {
+          ...s,
+          pendingEffect: {
+            type: "selectTarget",
+            sourceCard: unit,
+            effect: eff,
+          },
+        };
         return s;
       } else {
         s = aiRecoverFromDiscard(s, playerIdx, eff);
       }
     }
 
-    if (eff.type === 'heal' && eff.target === 'ally') {
+    if (eff.type === "heal" && eff.target === "ally") {
       if (playerIdx === 0) {
-        s = { ...s, pendingEffect: { type: 'selectAllyUnit', sourceCard: unit, effect: eff } };
+        s = {
+          ...s,
+          pendingEffect: {
+            type: "selectAllyUnit",
+            sourceCard: unit,
+            effect: eff,
+          },
+        };
         return s;
       } else {
-        const target = s.players[playerIdx].units.find(u => u.instanceId !== unitInstanceId);
-        if (target) s = healTarget(s, target.instanceId, eff.value ?? 0, playerIdx);
+        const target = s.players[playerIdx].units.find(
+          (u) => u.instanceId !== unitInstanceId,
+        );
+        if (target)
+          s = healTarget(s, target.instanceId, eff.value ?? 0, playerIdx);
       }
     }
 
-    if (eff.type === 'attackAgain') {
+    if (eff.type === "attackAgain") {
       if (playerIdx === 0) {
-        s = { ...s, pendingEffect: { type: 'selectAllyUnit', sourceCard: unit, effect: eff } };
+        s = {
+          ...s,
+          pendingEffect: {
+            type: "selectAllyUnit",
+            sourceCard: unit,
+            effect: eff,
+          },
+        };
         return s;
       }
     }
 
-    if (eff.type === 'damage' && eff.target === 'ally') {
+    if (eff.type === "attackBonus") {
       if (playerIdx === 0) {
-        s = { ...s, pendingEffect: { type: 'selectAllyUnit', sourceCard: unit, effect: eff } };
+        s = {
+          ...s,
+          pendingEffect: {
+            type: "selectAllyUnit",
+            sourceCard: unit,
+            effect: eff,
+          },
+        };
+        return s;
+      } else {
+        const target =
+          s.players[playerIdx].units.find(
+            (u) => u.instanceId !== unitInstanceId,
+          ) ?? s.players[playerIdx].units[unitIdx];
+        if (target) {
+          const p = s.players[playerIdx];
+          const newUnits = p.units.map((u) =>
+            u.instanceId === target.instanceId
+              ? { ...u, currentAttack: u.currentAttack + (eff.value ?? 0) }
+              : u,
+          );
+          const newPlayers = [...s.players] as [PlayerState, PlayerState];
+          newPlayers[playerIdx] = { ...p, units: newUnits };
+          s = {
+            ...s,
+            players: newPlayers,
+            log: [...s.log, `${target.name} recebe +${eff.value ?? 0} ATK.`],
+          };
+        }
+      }
+    }
+
+    if (eff.type === "damage" && eff.target === "ally") {
+      if (playerIdx === 0) {
+        s = {
+          ...s,
+          pendingEffect: {
+            type: "selectAllyUnit",
+            sourceCard: unit,
+            effect: eff,
+          },
+        };
         return s;
       }
     }
@@ -1229,34 +2064,58 @@ export function activateAbility(state: GameState, playerIdx: PlayerIndex, unitIn
   return s;
 }
 
-export function resolveRecoverFromDiscard(state: GameState, playerIdx: PlayerIndex, cardId: string, eff: CardEffect): GameState {
+export function resolveRecoverFromDiscard(
+  state: GameState,
+  playerIdx: PlayerIndex,
+  cardId: string,
+  eff: CardEffect,
+): GameState {
   const player = state.players[playerIdx];
-  const cardDef = player.discard.find(c => c.id === cardId);
-  if (!cardDef) return { ...state, log: [...state.log, 'Carta não encontrada no descarte.'] };
+  const cardDef = player.discard.find((c) => c.id === cardId);
+  if (!cardDef)
+    return {
+      ...state,
+      log: [...state.log, "Carta não encontrada no descarte."],
+    };
 
-  const newDiscard = player.discard.filter(c => c !== cardDef);
+  const newDiscard = player.discard.filter((c) => c !== cardDef);
 
-  if (eff.type === 'recoverFromDiscard') {
+  if (eff.type === "recoverFromDiscard") {
     const newPlayers = [...state.players] as [PlayerState, PlayerState];
-    newPlayers[playerIdx] = { ...player, discard: newDiscard, deck: shuffle([...player.deck, cardDef]) };
-    return { ...state, players: newPlayers, log: [...state.log, `${cardDef.name} recuperado do descarte.`], pendingEffect: null };
+    newPlayers[playerIdx] = {
+      ...player,
+      discard: newDiscard,
+      deck: shuffle([...player.deck, cardDef]),
+    };
+    let s: GameState = {
+      ...state,
+      players: newPlayers,
+      log: [...state.log, `${cardDef.name} recuperado do descarte.`],
+      pendingEffect: null,
+    };
+    s = processRecoverFromDiscardTriggers(s, playerIdx, cardDef);
+    return s;
   }
 
   return state;
 }
 
-export function getValidAttackTargets(state: GameState, attackerPlayerIdx: PlayerIndex, attacker: BattleCard): string[] {
+export function getValidAttackTargets(
+  state: GameState,
+  attackerPlayerIdx: PlayerIndex,
+  attacker: BattleCard,
+): string[] {
   const defenderPlayerIdx = (1 - attackerPlayerIdx) as PlayerIndex;
   const defender = state.players[defenderPlayerIdx];
-  const hasReadyUnits = defender.units.some(u => !u.exhausted);
-  const hasStealth = hasCondition(attacker, 'stealth');
+  const hasReadyUnits = defender.units.some((u) => !u.exhausted);
+  const hasStealth = hasCondition(attacker, "stealth");
 
   if (!hasReadyUnits || hasStealth) {
     return [
       defender.hero.instanceId,
-      ...defender.units.map(u => u.instanceId),
+      ...defender.units.map((u) => u.instanceId),
     ];
   }
 
-  return defender.units.map(u => u.instanceId);
+  return defender.units.map((u) => u.instanceId);
 }
