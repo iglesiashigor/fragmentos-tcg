@@ -56,7 +56,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const [validTargets, setValidTargets] = useState<string[]>([]);
   const [gameMessage, setGameMessage] = useState('');
   const [viewingDiscard, setViewingDiscard] = useState<PlayerIndex | null>(null);
-  const skipNextSync = useRef(false);
+  const skipSyncVersion = useRef<number | null>(null);
 
   // Sync from external state changes (PvP: opponent moves pushed from Supabase)
   useEffect(() => {
@@ -77,7 +77,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
           prev.stateVersion !== initialState.stateVersion ||
           (prev.inactivityFaults?.join(',') ?? '') !== (initialState.inactivityFaults?.join(',') ?? '')
         ) {
-          skipNextSync.current = true;
+          skipSyncVersion.current = initialState.stateVersion ?? null;
           return initialState;
         }
         return prev;
@@ -131,8 +131,8 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   // Sync state changes to PvP server
   useEffect(() => {
     if (isPvP && onStateChange) {
-      if (skipNextSync.current) {
-        skipNextSync.current = false;
+      if (skipSyncVersion.current !== null && skipSyncVersion.current === (gameState.stateVersion ?? null)) {
+        skipSyncVersion.current = null;
         return;
       }
       onStateChange(gameState);
