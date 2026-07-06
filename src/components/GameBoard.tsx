@@ -62,6 +62,10 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   useEffect(() => {
     if (isPvP) {
       setGameState(prev => {
+        if ((prev.stateVersion ?? 0) > (initialState.stateVersion ?? 0)) {
+          return prev;
+        }
+
         // Only update if the external state is newer or has PvP metadata changes.
         if (
           prev.turnNumber !== initialState.turnNumber ||
@@ -70,6 +74,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
           prev.gameOver !== initialState.gameOver ||
           prev.winner !== initialState.winner ||
           prev.turnStartedAt !== initialState.turnStartedAt ||
+          prev.stateVersion !== initialState.stateVersion ||
           (prev.inactivityFaults?.join(',') ?? '') !== (initialState.inactivityFaults?.join(',') ?? '')
         ) {
           skipNextSync.current = true;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { GameState, PlayerIndex, DeckDefinition } from '../types/game';
 import { createInitialState, buildDeck, endTurn } from '../engine/gameEngine';
@@ -54,6 +54,7 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
   const [winner, setWinner] = useState<PlayerIndex | 'draw' | null>(null);
   const [playerNames, setPlayerNames] = useState<[string, string]>(['Jogador 1', 'Jogador 2']);
   const [secondsRemaining, setSecondsRemaining] = useState(60);
+  const processingTimeoutRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!roomId || !user) return;
@@ -67,8 +68,14 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
         ...state,
         turnStartedAt: state.turnStartedAt ?? Date.now(),
         inactivityFaults: state.inactivityFaults ?? [0, 0],
+        stateVersion: state.stateVersion ?? 0,
       };
-      setGameState(normalizedState);
+      setGameState(currentState => {
+        if ((currentState?.stateVersion ?? 0) > (normalizedState.stateVersion ?? 0)) {
+          return currentState;
+        }
+        return normalizedState;
+      });
       if (normalizedState.gameOver && normalizedState.winner !== null) setWinner(normalizedState.winner);
     };
 
@@ -108,6 +115,7 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
         ...createInitialState(p1Deck.heroId, p1Cards, p2Deck.heroId, p2Cards, first),
         turnStartedAt: Date.now(),
         inactivityFaults: [0, 0],
+        stateVersion: 1,
       };
 
       await supabase
@@ -204,6 +212,7 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
         ...newState,
         turnStartedAt: turnChanged ? Date.now() : (newState.turnStartedAt ?? previousState?.turnStartedAt ?? Date.now()),
         inactivityFaults: newState.inactivityFaults ?? previousState?.inactivityFaults ?? [0, 0],
+        stateVersion: Math.max(previousState?.stateVersion ?? 0, newState.stateVersion ?? 0) + 1,
       };
 
       void supabase.from('game_rooms').update({ game_state: stateToSave }).eq('id', roomId);
@@ -222,6 +231,10 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
 
       if (remaining > 0 || gameState.currentPlayer === playerNumber) return;
 
+      const timeoutKey = `${gameState.currentPlayer}-${gameState.turnStartedAt ?? 0}-${gameState.stateVersion ?? 0}`;
+      if (processingTimeoutRef.current === timeoutKey) return;
+      processingTimeoutRef.current = timeoutKey;
+
       const faultedPlayer = gameState.currentPlayer;
       const faults: [number, number] = [...(gameState.inactivityFaults ?? [0, 0])] as [number, number];
       faults[faultedPlayer] += 1;
@@ -229,6 +242,7 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
       let nextState: GameState = {
         ...gameState,
         inactivityFaults: faults,
+        stateVersion: (gameState.stateVersion ?? 0) + 1,
         log: [...gameState.log, `${playerNames[faultedPlayer]} recebeu falta por inatividade (${faults[faultedPlayer]}/2).`],
       };
 
@@ -240,17 +254,33 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
           winner: winnerIdx,
           log: [...nextState.log, `${playerNames[winnerIdx]} venceu por inatividade do oponente.`],
         };
-        setWinner(winnerIdx);
       } else {
         nextState = {
           ...endTurn(nextState),
           turnStartedAt: Date.now(),
           inactivityFaults: faults,
+          stateVersion: (nextState.stateVersion ?? 0) + 1,
         };
       }
 
-      setGameState(nextState);
-      void supabase.from('game_rooms').update({ game_state: nextState }).eq('id', roomId);
+      void (async () => {
+        const { error: updateError } = await supabase
+          .from('game_rooms')
+          .update({ game_state: nextState })
+          .eq('id', roomId);
+
+        if (updateError) {
+          processingTimeoutRef.current = null;
+          return;
+        }
+
+        setGameState(currentState => {
+          if ((currentState?.stateVersion ?? 0) > (nextState.stateVersion ?? 0)) return currentState;
+          return nextState;
+        });
+
+        if (nextState.gameOver && nextState.winner !== null) setWinner(nextState.winner);
+      })();
     }, 1000);
 
     return () => clearInterval(interval);
