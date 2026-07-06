@@ -16,7 +16,7 @@ import GameLog from './GameLog';
 import {
   Sword, Star, ChevronRight,
   Trash2, Hand, Layers, Eye, Zap, Shield,
-  Flag,
+  Flag, Clock, AlertTriangle, X,
 } from 'lucide-react';
 
 interface GameBoardProps {
@@ -25,6 +25,11 @@ interface GameBoardProps {
   isPvP?: boolean;
   onStateChange?: (state: GameState) => void;
   myPlayerIndex?: PlayerIndex;
+  playerNames?: [string, string];
+  pvpTimer?: {
+    secondsRemaining: number;
+    faults: [number, number];
+  };
 }
 
 type SelectionMode =
@@ -37,7 +42,7 @@ type SelectionMode =
   | 'selectAllyForEffect'
   | 'selectDiscardCard';
 
-export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChange, myPlayerIndex = 0 }: GameBoardProps) {
+export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChange, myPlayerIndex = 0, playerNames, pvpTimer }: GameBoardProps) {
   const [gameState, setGameState] = useState<GameState>(initialState);
   const [, setSelectedCard] = useState<CardDefinition | BattleCard | null>(null);
   const [inspectedCard, setInspectedCard] = useState<CardDefinition | BattleCard | null>(null);
@@ -50,14 +55,23 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const [aiThinking, setAiThinking] = useState(false);
   const [validTargets, setValidTargets] = useState<string[]>([]);
   const [gameMessage, setGameMessage] = useState('');
+  const [viewingDiscard, setViewingDiscard] = useState<PlayerIndex | null>(null);
   const skipNextSync = useRef(false);
 
   // Sync from external state changes (PvP: opponent moves pushed from Supabase)
   useEffect(() => {
     if (isPvP) {
       setGameState(prev => {
-        // Only update if the external state is newer (different turn or player)
-        if (prev.turnNumber !== initialState.turnNumber || prev.currentPlayer !== initialState.currentPlayer || prev.phase !== initialState.phase) {
+        // Only update if the external state is newer or has PvP metadata changes.
+        if (
+          prev.turnNumber !== initialState.turnNumber ||
+          prev.currentPlayer !== initialState.currentPlayer ||
+          prev.phase !== initialState.phase ||
+          prev.gameOver !== initialState.gameOver ||
+          prev.winner !== initialState.winner ||
+          prev.turnStartedAt !== initialState.turnStartedAt ||
+          (prev.inactivityFaults?.join(',') ?? '') !== (initialState.inactivityFaults?.join(',') ?? '')
+        ) {
           skipNextSync.current = true;
           return initialState;
         }
@@ -70,6 +84,8 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const oppIdx: PlayerIndex = myIdx === 0 ? 1 : 0;
   const player = gameState.players[myIdx];
   const ai = gameState.players[oppIdx];
+  const myDisplayName = playerNames?.[myIdx] ?? 'Você';
+  const oppDisplayName = playerNames?.[oppIdx] ?? (isPvP ? 'Oponente' : 'IA');
   const isPlayerTurn = gameState.currentPlayer === myIdx;
   const isMainPhase = gameState.phase === 'main';
   const isAttackPhase = gameState.phase === 'attack';
@@ -112,7 +128,8 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     const s = endTurn(gameState);
     setGameState(s);
   };
-  const myLabel = isPvP ? 'Você' : 'IA';
+  const myLabel = myDisplayName;
+  const timerOwnerLabel = gameState.currentPlayer === myIdx ? myDisplayName : oppDisplayName;
 
   const handleDeclareAttackPhase = () => {
     if (!isPlayerTurn || gameState.gameOver) return;
@@ -459,8 +476,11 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const discardableCards = player.discard.filter(c =>
     !pendingEffectCard?.eff?.cardType || c.type === pendingEffectCard.eff.cardType
   );
-
-  const oppLabel = isPvP ? 'Oponente' : 'IA';
+  const oppLabel = oppDisplayName;
+  const viewedDiscardCards = viewingDiscard !== null ? gameState.players[viewingDiscard].discard : [];
+  const viewedDiscardName = viewingDiscard !== null
+    ? (viewingDiscard === myIdx ? myLabel : oppLabel)
+    : '';
 
   return (
     <div className="h-screen text-white flex flex-col relative overflow-hidden"
@@ -493,6 +513,34 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
         </div>
       )}
 
+      {/* Discard viewer overlay */}
+      {viewingDiscard !== null && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 rounded-xl border border-slate-700 max-w-3xl w-full max-h-[82vh] flex flex-col shadow-2xl">
+            <div className="p-4 border-b border-slate-700 flex justify-between items-center">
+              <div>
+                <h2 className="text-white font-bold text-lg">Descarte de {viewedDiscardName}</h2>
+                <p className="text-slate-500 text-xs">{viewedDiscardCards.length} carta(s)</p>
+              </div>
+              <button onClick={() => setViewingDiscard(null)} className="text-slate-400 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {viewedDiscardCards.length === 0 ? (
+                <p className="text-slate-500 text-center py-8">Nenhuma carta no descarte.</p>
+              ) : (
+                <div className="flex flex-wrap gap-3 justify-center">
+                  {viewedDiscardCards.map((card, i) => (
+                    <CardDisplay key={`${card.id}-${i}`} card={card} size="md" onClick={() => setInspectedCard(card)} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Card Inspector Modal */}
       {inspectedCard && <CardInspector card={inspectedCard} onClose={() => setInspectedCard(null)} />}
 
@@ -517,9 +565,23 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
             : 'bg-rose-950/50 text-rose-300 border border-rose-600/40'
         }`}>
           <span className={`w-2 h-2 rounded-full ${isPlayerTurn ? 'bg-emerald-400' : 'bg-rose-400'} animate-pulse`} />
-          {isPlayerTurn ? 'Seu Turno' : isPvP ? 'Aguardando Oponente' : 'Turno da IA'}
+          {isPlayerTurn ? `Turno de ${myLabel}` : isPvP ? `Turno de ${oppLabel}` : 'Turno da IA'}
           {aiThinking && <span className="ml-1 text-amber-300">• pensando...</span>}
         </div>
+        {isPvP && pvpTimer && (
+          <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-semibold ${
+            pvpTimer.secondsRemaining <= 10
+              ? 'bg-rose-950/60 text-rose-200 border-rose-600/50'
+              : 'bg-slate-900/70 text-slate-300 border-slate-700/60'
+          }`}>
+            <Clock className="w-3.5 h-3.5" />
+            <span>{timerOwnerLabel}: {pvpTimer.secondsRemaining}s</span>
+            <span className="text-slate-500">|</span>
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-300" />
+            <span>{myLabel} {pvpTimer.faults[myIdx]}/2</span>
+            <span>{oppLabel} {pvpTimer.faults[oppIdx]}/2</span>
+          </div>
+        )}
         <button
           onClick={() => { if (confirm('Deseja realmente desistir da partida?')) onGameEnd(oppIdx); }}
           className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-rose-950/50 text-rose-300 border border-rose-700/40 hover:bg-rose-900/50 transition-colors"
@@ -541,15 +603,27 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
             </div>
             <div className="text-xs text-slate-400 flex justify-between">
               <span>{oppLabel}: <b className="text-slate-200">{ai.deck.length}</b></span>
-              <span>Você: <b className="text-slate-200">{player.deck.length}</b></span>
+              <span>{myLabel}: <b className="text-slate-200">{player.deck.length}</b></span>
             </div>
             <div className="flex items-center gap-1.5 text-xs pt-1 border-t border-slate-800">
               <Trash2 className="w-3 h-3 text-slate-500" />
               <span className="text-slate-500">Descartes</span>
             </div>
-            <div className="text-xs text-slate-400 flex justify-between">
-              <span>{oppLabel}: <b className="text-slate-200">{ai.discard.length}</b></span>
-              <span>Você: <b className="text-slate-200">{player.discard.length}</b></span>
+            <div className="text-xs text-slate-400 flex justify-between gap-2">
+              <button
+                onClick={() => setViewingDiscard(oppIdx)}
+                className="text-left hover:text-slate-200 transition-colors disabled:opacity-50"
+                disabled={ai.discard.length === 0}
+              >
+                {oppLabel}: <b className="text-slate-200">{ai.discard.length}</b>
+              </button>
+              <button
+                onClick={() => setViewingDiscard(myIdx)}
+                className="text-right hover:text-slate-200 transition-colors disabled:opacity-50"
+                disabled={player.discard.length === 0}
+              >
+                {myLabel}: <b className="text-slate-200">{player.discard.length}</b>
+              </button>
             </div>
           </div>
         </div>
@@ -730,7 +804,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
               <div className="w-6 h-6 rounded-full bg-blue-950/60 border border-blue-700/40 flex items-center justify-center">
                 <Shield className="w-3.5 h-3.5 text-blue-400" />
               </div>
-              <span className="text-blue-300 text-xs font-bold uppercase tracking-wider">Você</span>
+              <span className="text-blue-300 text-xs font-bold uppercase tracking-wider">{myLabel}</span>
               {/* Mana crystals */}
               <div className="ml-auto flex items-center gap-1">
                 {Array.from({ length: player.maxMana + player.manaBonusFromItems }).map((_, i) => (
