@@ -154,7 +154,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     } else if (card.type === 'spell') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
       const needsTarget = card.effects.some(e =>
-        ['damage', 'heal', 'applyCondition', 'attackAgain', 'bonusAttackPerDamageTaken', 'removeCondition'].includes(e.type) &&
+        ['damage', 'heal', 'applyCondition', 'attackAgain', 'bonusAttackPerDamageTaken', 'removeCondition', 'attackBonus'].includes(e.type) &&
         (e.target === 'anyUnit' || e.target === 'ally' || e.target === 'enemy')
       );
       const needsDiscard = card.effects.some(e => e.type === 'recoverFromDiscard');
@@ -192,7 +192,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       // Filter out units that already have equipment
       const validEquipTargets = [
         ...(player.hero.equipment ? [] : [player.hero.instanceId]),
-        ...player.units.filter(u => !u.equipment).map(u => u.instanceId)
+        ...(card.heroOnly ? [] : player.units.filter(u => !u.equipment).map(u => u.instanceId))
       ];
       if (validEquipTargets.length === 0) {
         setGameMessage('Todas as unidades já possuem equipamento!');
@@ -206,7 +206,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       // Filter out units that already have mounts
       const validMountTargets = [
         ...(player.hero.mount ? [] : [player.hero.instanceId]),
-        ...player.units.filter(u => !u.mount).map(u => u.instanceId)
+        ...(card.heroOnly ? [] : player.units.filter(u => !u.mount).map(u => u.instanceId))
       ];
       if (validMountTargets.length === 0) {
         setGameMessage('Todas as unidades já possuem montaria!');
@@ -272,6 +272,13 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
         s = applyConditionToTarget(s, card.instanceId, eff.condition);
       } else if (eff.type === 'heal') {
         s = healTarget(s, card.instanceId, eff.value ?? 0, myIdx);
+      } else if (eff.type === 'attackBonus') {
+        const newUnits = s.players[myIdx].units.map(u =>
+          u.instanceId === card.instanceId ? { ...u, currentAttack: u.currentAttack + (eff.value ?? 0) } : u
+        );
+        const newPlayers = [...s.players] as typeof s.players;
+        newPlayers[myIdx] = { ...s.players[myIdx], units: newUnits };
+        s = { ...s, players: newPlayers };
       } else if (eff.type === 'attackAgain' || eff.type === 'bonusAttackPerDamageTaken') {
         const damage = eff.type === 'bonusAttackPerDamageTaken'
           ? card.maxHealth - card.currentHealth
@@ -366,6 +373,13 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
         s = applyConditionToTarget(s, hero.instanceId, eff.condition);
       } else if (eff.type === 'heal') {
         s = healTarget(s, hero.instanceId, eff.value ?? 0, myIdx);
+      } else if (eff.type === 'attackBonus') {
+        const newPlayers = [...s.players] as typeof s.players;
+        newPlayers[myIdx] = {
+          ...s.players[myIdx],
+          hero: { ...s.players[myIdx].hero, currentAttack: s.players[myIdx].hero.currentAttack + (eff.value ?? 0) }
+        };
+        s = { ...s, players: newPlayers };
       }
       setGameState(s);
       resetSelections();
