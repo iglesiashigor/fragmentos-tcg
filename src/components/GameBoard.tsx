@@ -42,6 +42,13 @@ type SelectionMode =
   | 'selectAllyForEffect'
   | 'selectDiscardCard';
 
+interface RecoverConfirmState {
+  cardName: string;
+  title: string;
+  message: React.ReactNode;
+  onConfirm: () => void;
+}
+
 export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChange, myPlayerIndex = 0, playerNames, pvpTimer }: GameBoardProps) {
   const [gameState, setGameState] = useState<GameState>(initialState);
   const [, setSelectedCard] = useState<CardDefinition | BattleCard | null>(null);
@@ -56,6 +63,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const [validTargets, setValidTargets] = useState<string[]>([]);
   const [gameMessage, setGameMessage] = useState('');
   const [viewingDiscard, setViewingDiscard] = useState<PlayerIndex | null>(null);
+  const [recoverConfirm, setRecoverConfirm] = useState<RecoverConfirmState | null>(null);
   const skipSyncVersion = useRef<number | null>(null);
   const syncedStateVersion = useRef<number | null>(null);
 
@@ -213,12 +221,43 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       !hasRecoverTargetInDiscard(e)
     );
 
-  const confirmUseWithoutDiscardTarget = (card: CardDefinition | BattleCard, timing?: CardEffect['timing']) => {
+  const requestRecoverConfirmation = (
+    card: CardDefinition | BattleCard,
+    timing: CardEffect['timing'] | undefined,
+    onConfirm: () => void,
+  ) => {
     const unavailableEffect = getUnavailableRecoverEffect(card, timing);
-    if (!unavailableEffect) return true;
+    if (!unavailableEffect) return false;
 
     const typeName = unavailableEffect.cardType ? cardTypeNames[unavailableEffect.cardType] : 'carta';
-    return confirm(`Nao ha carta do tipo ${typeName} no descarte para ${card.name}. Deseja usar mesmo assim?`);
+    setRecoverConfirm({
+      cardName: card.name,
+      title: 'Sem alvo no descarte',
+      message: <>Nao ha carta do tipo <span className="text-amber-300 font-semibold">{typeName}</span> no descarte. Deseja usar mesmo assim?</>,
+      onConfirm,
+    });
+    return true;
+  };
+
+  const requestDestroyTerrainConfirmation = (
+    card: CardDefinition,
+    onConfirm: () => void,
+  ) => {
+    const destroysEnemyTerrain = card.effects.some(e =>
+      e.type === 'destroyTerrain' &&
+      e.timing === 'onPlay' &&
+      (e.target === 'enemy' || !e.target)
+    );
+
+    if (!destroysEnemyTerrain || ai.terrain) return false;
+
+    setRecoverConfirm({
+      cardName: card.name,
+      title: 'Oponente sem terreno',
+      message: <>O oponente nao possui terreno para destruir. Deseja usar mesmo assim?</>,
+      onConfirm,
+    });
+    return true;
   };
 
   const clearUnavailableRecoverSelection = (state: GameState) => {
@@ -243,7 +282,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     log: [...state.log, 'Nao havia carta valida no descarte para recuperar.'],
   });
 
-  const handleCardFromHand = (card: CardDefinition) => {
+  const handleCardFromHand = (card: CardDefinition, bypassRecoverConfirm = false) => {
     if (!isPlayerTurn || gameState.gameOver) return;
     if (isAttackPhase) {
       setGameMessage('Não é possível jogar cartas na fase de ataque!');
@@ -253,17 +292,18 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     if (card.type === 'unit') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
       if (player.units.length >= getUnitSlots(player)) { setGameMessage('Sem espaço para unidades!'); return; }
-      if (!confirmUseWithoutDiscardTarget(card, 'onSummon')) return;
+      if (!bypassRecoverConfirm && requestRecoverConfirmation(card, 'onSummon', () => handleCardFromHand(card, true))) return;
       const s = clearUnavailableRecoverSelection(playUnit(gameState, myIdx, card, true));
       setGameState(s);
       handlePendingEffectFromState(s);
     } else if (card.type === 'terrain') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
-      if (!confirmUseWithoutDiscardTarget(card, 'onPlay')) return;
+      if (!bypassRecoverConfirm && requestRecoverConfirmation(card, 'onPlay', () => handleCardFromHand(card, true))) return;
       const s = clearUnavailableRecoverSelection(playTerrain(gameState, myIdx, card));
       setGameState(s);
     } else if (card.type === 'spell') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
+      if (!bypassRecoverConfirm && requestDestroyTerrainConfirmation(card, () => handleCardFromHand(card, true))) return;
       const needsTarget = card.effects.some(e =>
         ['damage', 'heal', 'applyCondition', 'attackAgain', 'bonusAttackPerDamageTaken', 'removeCondition', 'attackBonus'].includes(e.type) &&
         (e.target === 'anyUnit' || e.target === 'ally' || e.target === 'enemy')
@@ -271,7 +311,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       const needsDiscard = hasRecoverEffect(card, 'onPlay');
       if (needsDiscard) {
         const unavailableRecoverEffect = getUnavailableRecoverEffect(card, 'onPlay');
-        if (!confirmUseWithoutDiscardTarget(card, 'onPlay')) return;
+        if (!bypassRecoverConfirm && requestRecoverConfirmation(card, 'onPlay', () => handleCardFromHand(card, true))) return;
         const playedState = playSpell(gameState, myIdx, card);
         const s = unavailableRecoverEffect
           ? clearRecoverSelection(playedState)
@@ -305,7 +345,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       handlePendingEffectFromState(s);
     } else if (card.type === 'equipment') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
-      if (!confirmUseWithoutDiscardTarget(card, 'onPlay')) return;
+      if (!bypassRecoverConfirm && requestRecoverConfirmation(card, 'onPlay', () => handleCardFromHand(card, true))) return;
       // Filter out units that already have equipment
       const validEquipTargets = [
         ...(player.hero.equipment ? [] : [player.hero.instanceId]),
@@ -320,7 +360,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       setSelectionMode('selectEquipTarget');
     } else if (card.type === 'mount') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
-      if (!confirmUseWithoutDiscardTarget(card, 'onPlay')) return;
+      if (!bypassRecoverConfirm && requestRecoverConfirmation(card, 'onPlay', () => handleCardFromHand(card, true))) return;
       // Filter out units that already have mounts
       const validMountTargets = [
         ...(player.hero.mount ? [] : [player.hero.instanceId]),
@@ -559,9 +599,9 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     setGameMessage('Selecione o alvo do ataque.');
   };
 
-  const handleActivateAbility = (unit: BattleCard) => {
+  const handleActivateAbility = (unit: BattleCard, bypassRecoverConfirm = false) => {
     if (!isPlayerTurn || gameState.gameOver) return;
-    if (!confirmUseWithoutDiscardTarget(unit, 'activated')) return;
+    if (!bypassRecoverConfirm && requestRecoverConfirmation(unit, 'activated', () => handleActivateAbility(unit, true))) return;
     const s = clearUnavailableRecoverSelection(activateAbility(gameState, myIdx, unit.instanceId, true));
     setGameState(s);
     handlePendingEffectFromState(s);
@@ -591,6 +631,46 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       {/* Subtle texture overlay */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
         style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22120%22%3E%3Cpath d=%22M0 0h120v120H0z%22 fill=%22none%22/%3E%3Cpath d=%22M0 0l120 120M120 0L0 120%22 stroke=%22%23fff%22 stroke-width=%220.5%22/%3E%3C/svg%3E")' }} />
+
+      {/* Recover confirmation overlay */}
+      {recoverConfirm && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 rounded-xl border border-amber-700/50 max-w-md w-full shadow-2xl">
+            <div className="p-4 border-b border-slate-700 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-amber-300" />
+              </div>
+              <div>
+                <h2 className="text-white font-bold text-lg">{recoverConfirm.title}</h2>
+                <p className="text-slate-500 text-xs">{recoverConfirm.cardName}</p>
+              </div>
+            </div>
+            <div className="p-4 space-y-4">
+              <p className="text-slate-300 text-sm leading-relaxed">
+                {recoverConfirm.message}
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setRecoverConfirm(null)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm rounded-lg font-semibold transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    const action = recoverConfirm.onConfirm;
+                    setRecoverConfirm(null);
+                    action();
+                  }}
+                  className="px-4 py-2 bg-gradient-to-r from-amber-700 to-amber-600 hover:from-amber-600 hover:to-amber-500 text-white text-sm rounded-lg font-bold transition-all"
+                >
+                  Usar mesmo assim
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Discard selection overlay */}
       {selectionMode === 'selectDiscardCard' && (
