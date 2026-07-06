@@ -125,6 +125,16 @@ export function getEffectiveAttack(card: BattleCard): number {
   return Math.max(0, card.currentAttack + atkMod);
 }
 
+export function getEquipmentAttackBonus(card: BattleCard): number {
+  if (!card.equipment || card.equipment.currentDurability <= 0) return 0;
+  const eff = card.equipment.effects.find(e => e.type === 'damage' && e.timing === 'onAttack');
+  return eff?.value ?? 0;
+}
+
+export function getAttackDamage(card: BattleCard): number {
+  return getEffectiveAttack(card) + getEquipmentAttackBonus(card);
+}
+
 export function getEffectiveDefense(card: BattleCard): number {
   const { defMod } = getConditionModifiers(card);
   return Math.max(0, card.currentDefense + defMod);
@@ -935,7 +945,7 @@ export function attachEquipment(state: GameState, playerIdx: PlayerIndex, cardDe
     cardId: cardDef.id,
     name: cardDef.name,
     currentDurability: cardDef.durability ?? 0,
-    maxDurability: cardDef.maxDurability ?? 0,
+    maxDurability: cardDef.maxDurability ?? cardDef.durability ?? 0,
     effects: cardDef.effects,
   };
 
@@ -986,7 +996,7 @@ export function attachMount(state: GameState, playerIdx: PlayerIndex, cardDef: C
     cardId: cardDef.id,
     name: cardDef.name,
     currentDurability: cardDef.durability ?? 0,
-    maxDurability: cardDef.maxDurability ?? 0,
+    maxDurability: cardDef.maxDurability ?? cardDef.durability ?? 0,
     effects: cardDef.effects,
   };
 
@@ -1037,12 +1047,7 @@ export function resolveAttack(state: GameState, attackerPlayerIdx: PlayerIndex, 
   // Calculate total damage
   let totalDamage = 0;
   for (const atk of attackers) {
-    let atkVal = getEffectiveAttack(atk);
-    if (atk.equipment) {
-      const eqEff = atk.equipment.effects.find(e => e.type === 'damage' && e.timing === 'onAttack');
-      if (eqEff && atk.equipment.currentDurability > 0) atkVal += eqEff.value ?? 0;
-    }
-    totalDamage += atkVal;
+    totalDamage += getAttackDamage(atk);
   }
 
   // Apply damage to target
@@ -1059,14 +1064,15 @@ export function resolveAttack(state: GameState, attackerPlayerIdx: PlayerIndex, 
       newHeroAtkr = { ...newHeroAtkr, exhausted: true };
       if (newHeroAtkr.equipment) {
         const hasOnAttackEffect = newHeroAtkr.equipment.effects.some(e => e.timing === 'onAttack');
-        if (hasOnAttackEffect) {
+        if (hasOnAttackEffect && newHeroAtkr.equipment.currentDurability > 0) {
           const newDur = newHeroAtkr.equipment.currentDurability - 1;
           if (newDur <= 0) {
             const eqDef = getCardById(newHeroAtkr.equipment.cardId);
+            newHeroAtkr = { ...newHeroAtkr, equipment: undefined };
             const newPlayers2 = [...s.players] as [PlayerState, PlayerState];
             newPlayers2[attackerPlayerIdx] = {
               ...newAttackerPlayer,
-              hero: { ...newHeroAtkr, equipment: undefined },
+              hero: newHeroAtkr,
               discard: eqDef ? [...newAttackerPlayer.discard, eqDef] : newAttackerPlayer.discard,
             };
             s = { ...s, players: newPlayers2 };
@@ -1093,7 +1099,7 @@ export function resolveAttack(state: GameState, attackerPlayerIdx: PlayerIndex, 
           newUnitsAtkr[i] = { ...newUnitsAtkr[i], exhausted: true };
           if (newUnitsAtkr[i].equipment) {
             const hasOnAttackEffect = newUnitsAtkr[i].equipment!.effects.some(e => e.timing === 'onAttack');
-            if (hasOnAttackEffect) {
+            if (hasOnAttackEffect && newUnitsAtkr[i].equipment!.currentDurability > 0) {
               const newDur = newUnitsAtkr[i].equipment!.currentDurability - 1;
               if (newDur <= 0) {
                 const eqDef = getCardById(newUnitsAtkr[i].equipment!.cardId);
