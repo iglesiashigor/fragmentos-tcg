@@ -95,6 +95,18 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const isMainPhase = gameState.phase === 'main';
   const isAttackPhase = gameState.phase === 'attack';
 
+  const finishTurn = (state: GameState): GameState => {
+    const nextState = endTurn(state);
+    if (!isPvP) return nextState;
+
+    return {
+      ...nextState,
+      turnStartedAt: Date.now(),
+      inactivityFaults: state.inactivityFaults ?? [0, 0],
+      stateVersion: (state.stateVersion ?? 0) + 1,
+    };
+  };
+
   useEffect(() => {
     if (gameState.gameOver && gameState.winner !== null) {
       setTimeout(() => onGameEnd(gameState.winner!), 500);
@@ -130,7 +142,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const handleEndTurn = () => {
     if (!isPlayerTurn || gameState.gameOver) return;
     resetSelections();
-    const s = endTurn(gameState);
+    const s = finishTurn(gameState);
     setGameState(s);
   };
   const myLabel = myDisplayName;
@@ -345,7 +357,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
         if (!s.gameOver) {
           setGameMessage('Sem atacantes disponíveis. Encerrando turno...');
           setTimeout(() => {
-            const endState = endTurn(s);
+            const endState = finishTurn(s);
             setGameState(endState);
             setGameMessage('');
           }, 800);
@@ -436,7 +448,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
         if (!s.gameOver) {
           setGameMessage('Sem atacantes disponíveis. Encerrando turno...');
           setTimeout(() => {
-            const endState = endTurn(s);
+            const endState = finishTurn(s);
             setGameState(endState);
             setGameMessage('');
           }, 800);
@@ -861,7 +873,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                     className="px-5 py-2 bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 disabled:from-slate-800 disabled:to-slate-800 text-white text-sm rounded-lg font-bold transition-all shadow-lg shadow-rose-900/30 disabled:shadow-none">
                     Declarar Ataque
                   </button>
-                  <button onClick={() => { resetSelections(); setGameState(endTurn(gameState)); }}
+                  <button onClick={() => { resetSelections(); setGameState(finishTurn(gameState)); }}
                     className="px-4 py-2 bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 text-white text-sm rounded-lg font-bold transition-all flex items-center gap-2 shadow-lg shadow-blue-900/30">
                     Encerrar Turno
                   </button>

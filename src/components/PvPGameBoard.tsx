@@ -221,6 +221,14 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
   }, [roomId]);
 
   useEffect(() => {
+    if (!gameState) return;
+    const startedAt = gameState.turnStartedAt ?? Date.now();
+    const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
+    setSecondsRemaining(Math.max(0, 60 - elapsedSeconds));
+    processingTimeoutRef.current = null;
+  }, [gameState?.currentPlayer, gameState?.turnStartedAt, gameState?.stateVersion]);
+
+  useEffect(() => {
     if (!gameState || playerNumber === null || gameState.gameOver) return;
 
     const interval = setInterval(() => {
