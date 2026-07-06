@@ -111,6 +111,8 @@ export interface GameState {
   pendingEffect: PendingEffect | null;
   firstPlayerCannotAttack: boolean;
   extraAttackPhase: boolean;
+  turnStartedAt?: number;
+  inactivityFaults?: [number, number];
 }
 
 export interface PendingEffect {
