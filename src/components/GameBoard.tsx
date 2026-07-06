@@ -7,7 +7,7 @@ import {
   resolveAttack, endTurn, getValidAttackTargets,
   canAttack, getUnitSlots, applyConditionToTarget,
   healTarget, resolveRecoverFromDiscard,
-  activateAbility,
+  activateAbility, getAttackDamage,
 } from '../engine/gameEngine';
 import { runAITurn } from '../engine/aiEngine';
 import CardDisplay from './CardDisplay';
@@ -159,8 +159,9 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       );
       const needsDiscard = card.effects.some(e => e.type === 'recoverFromDiscard');
       if (needsDiscard) {
-        setPendingEffectCard({ card, eff: card.effects.find(e => e.type === 'recoverFromDiscard') });
-        setSelectionMode('selectDiscardCard');
+        const s = playSpell(gameState, myIdx, card);
+        setGameState(s);
+        handlePendingEffectFromState(s);
         return;
       }
       if (needsTarget) {
@@ -758,7 +759,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                       <span className="text-rose-400 font-bold bg-rose-950/40 px-2 py-0.5 rounded text-xs">
                         {selectedAttackers.reduce((sum, id) => {
                           const u = [...player.units, player.hero].find(u => u.instanceId === id);
-                          return sum + (u ? u.currentAttack : 0);
+                          return sum + (u ? getAttackDamage(u) : 0);
                         }, 0)} ATK
                       </span>
                     )}

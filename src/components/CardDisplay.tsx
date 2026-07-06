@@ -1,6 +1,7 @@
 import React from 'react';
 import { CardDefinition, BattleCard, AttachedItem, ConditionName } from '../types/game';
 import { Shield, Sword, Heart, Zap, Star, Leaf, Flame, Snowflake, Wind, Eye, AlertCircle, Droplet, Sun, Moon, Sparkles } from 'lucide-react';
+import { getEquipmentAttackBonus } from '../engine/gameEngine';
 
 interface CardDisplayProps {
   card: CardDefinition | BattleCard;
@@ -88,14 +89,12 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
   const tier = def?.tier ?? bc?.tier;
 
   // Equipment bonuses for display
-  const eqAttackBonus = bc?.equipment
-    ? (bc.equipment.effects.find(e => e.type === 'damage' && e.timing === 'onAttack')?.value ?? 0)
-    : 0;
+  const eqAttackBonus = bc ? getEquipmentAttackBonus(bc) : 0;
   const eqDefenseBonus = bc?.equipment
     ? (bc.equipment.effects.find(e => e.type === 'defenseBonus' && e.timing === 'onDefend')?.value ?? 0)
     : 0;
   const hasActiveEquipment = bc?.equipment && bc.equipment.currentDurability > 0;
-  const displayAttack = (hasActiveEquipment && eqAttackBonus > 0) ? attack! + eqAttackBonus : attack;
+  const displayAttack = attack;
 
   const colorClass = TYPE_COLORS[type] || TYPE_COLORS.unit;
   const artGradient = TYPE_ART_COLORS[type] || TYPE_ART_COLORS.unit;
