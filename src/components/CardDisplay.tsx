@@ -73,9 +73,11 @@ function isBattle(card: CardDefinition | BattleCard): card is BattleCard {
 }
 
 export default function CardDisplay({ card, isBattleCard, isSelected, isValidTarget, isExhausted, onClick, size = 'md', showBack }: CardDisplayProps) {
+  const [failedImages, setFailedImages] = React.useState<Record<string, boolean>>({});
   const bc = isBattle(card) ? card : null;
   const def = isBattle(card) ? null : card as CardDefinition;
 
+  const cardId = bc?.cardId ?? def?.id;
   const type = card.type;
   const name = card.name;
   const manaCost = card.manaCost;
@@ -104,6 +106,8 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
   const tierClass = tier === 'weak' ? 'tier-weak' : tier === 'medium' ? 'tier-medium' : tier === 'strong' ? 'tier-strong' : '';
   const heroClass = type === 'hero' ? 'hero-card' : '';
   const showsCombatStats = type === 'hero' || type === 'unit';
+  const imageSrc = card.imageUrl ?? (cardId ? `/cards/${cardId}.png` : null);
+  const showImage = !!imageSrc && !failedImages[imageSrc];
 
   const sizeClasses = {
     sm: 'w-24 h-36 text-xs',
@@ -153,7 +157,21 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
       {/* Art area with thematic gradient */}
       <div className="flex-1 flex items-center justify-center px-1 pt-6 pb-1 min-h-0">
         <div className={`w-full h-full rounded bg-gradient-to-br ${artGradient} flex items-center justify-center relative overflow-hidden border border-white/5`}>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+          {showImage && (
+            <img
+              src={imageSrc}
+              alt={name}
+              className="absolute inset-0 w-full h-full object-cover"
+              draggable={false}
+              onError={() => {
+                setFailedImages(current => ({
+                  ...current,
+                  [imageSrc]: true,
+                }));
+              }}
+            />
+          )}
+          <div className={`absolute inset-0 bg-gradient-to-t ${showImage ? 'from-black/70 via-black/10 to-black/20' : 'from-black/40 to-transparent'}`} />
           <span className="text-center text-white font-semibold leading-tight px-1 relative z-10 drop-shadow-sm" style={{ fontSize: '0.65rem' }}>
             {name}
           </span>
