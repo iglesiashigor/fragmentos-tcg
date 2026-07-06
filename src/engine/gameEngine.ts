@@ -24,6 +24,7 @@ export function createBattleCard(def: CardDefinition): BattleCard {
     cardId: def.id,
     name: def.name,
     type: def.type,
+    imageUrl: def.imageUrl,
     manaCost: def.manaCost,
     baseAttack: def.attack ?? 0,
     baseDefense: def.defense ?? 0,
