@@ -113,6 +113,7 @@ export interface GameState {
   extraAttackPhase: boolean;
   turnStartedAt?: number;
   inactivityFaults?: [number, number];
+  stateVersion?: number;
 }
 
 export interface PendingEffect {
