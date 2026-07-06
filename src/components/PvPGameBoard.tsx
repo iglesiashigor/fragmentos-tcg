@@ -55,6 +55,11 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
   const [playerNames, setPlayerNames] = useState<[string, string]>(['Jogador 1', 'Jogador 2']);
   const [secondsRemaining, setSecondsRemaining] = useState(60);
   const processingTimeoutRef = useRef<string | null>(null);
+  const latestGameStateRef = useRef<GameState | null>(null);
+
+  useEffect(() => {
+    latestGameStateRef.current = gameState;
+  }, [gameState]);
 
   useEffect(() => {
     if (!roomId || !user) return;
@@ -202,22 +207,30 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
 
   const handleStateChange = useCallback(async (newState: GameState) => {
     if (!roomId) return;
-    setGameState(previousState => {
-      const turnChanged = previousState && (
-        previousState.currentPlayer !== newState.currentPlayer ||
-        previousState.turnNumber !== newState.turnNumber
-      );
+    const previousState = latestGameStateRef.current;
+    const turnChanged = previousState && (
+      previousState.currentPlayer !== newState.currentPlayer ||
+      previousState.turnNumber !== newState.turnNumber
+    );
 
-      const stateToSave: GameState = {
-        ...newState,
-        turnStartedAt: turnChanged ? Date.now() : (newState.turnStartedAt ?? previousState?.turnStartedAt ?? Date.now()),
-        inactivityFaults: newState.inactivityFaults ?? previousState?.inactivityFaults ?? [0, 0],
-        stateVersion: Math.max(previousState?.stateVersion ?? 0, newState.stateVersion ?? 0) + 1,
-      };
+    const stateToSave: GameState = {
+      ...newState,
+      turnStartedAt: turnChanged ? Date.now() : (newState.turnStartedAt ?? previousState?.turnStartedAt ?? Date.now()),
+      inactivityFaults: newState.inactivityFaults ?? previousState?.inactivityFaults ?? [0, 0],
+      stateVersion: Math.max(previousState?.stateVersion ?? 0, newState.stateVersion ?? 0) + 1,
+    };
 
-      void supabase.from('game_rooms').update({ game_state: stateToSave }).eq('id', roomId);
-      return stateToSave;
-    });
+    latestGameStateRef.current = stateToSave;
+    setGameState(stateToSave);
+
+    const { error: updateError } = await supabase
+      .from('game_rooms')
+      .update({ game_state: stateToSave })
+      .eq('id', roomId);
+
+    if (updateError) {
+      setError('Nao foi possivel salvar a jogada. Tente novamente.');
+    }
   }, [roomId]);
 
   useEffect(() => {

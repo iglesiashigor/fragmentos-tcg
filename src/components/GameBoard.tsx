@@ -57,6 +57,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const [gameMessage, setGameMessage] = useState('');
   const [viewingDiscard, setViewingDiscard] = useState<PlayerIndex | null>(null);
   const skipSyncVersion = useRef<number | null>(null);
+  const syncedStateVersion = useRef<number | null>(null);
 
   // Sync from external state changes (PvP: opponent moves pushed from Supabase)
   useEffect(() => {
@@ -107,6 +108,14 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     };
   };
 
+  const commitGameState = (state: GameState, syncNow = false) => {
+    setGameState(state);
+    if (syncNow && isPvP && onStateChange) {
+      syncedStateVersion.current = state.stateVersion ?? null;
+      onStateChange(state);
+    }
+  };
+
   useEffect(() => {
     if (gameState.gameOver && gameState.winner !== null) {
       setTimeout(() => onGameEnd(gameState.winner!), 500);
@@ -135,6 +144,10 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
         skipSyncVersion.current = null;
         return;
       }
+      if (syncedStateVersion.current !== null && syncedStateVersion.current === (gameState.stateVersion ?? null)) {
+        syncedStateVersion.current = null;
+        return;
+      }
       onStateChange(gameState);
     }
   }, [gameState, isPvP, onStateChange]);
@@ -143,7 +156,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     if (!isPlayerTurn || gameState.gameOver) return;
     resetSelections();
     const s = finishTurn(gameState);
-    setGameState(s);
+    commitGameState(s, true);
   };
   const myLabel = myDisplayName;
   const timerOwnerLabel = gameState.currentPlayer === myIdx ? myDisplayName : oppDisplayName;
@@ -358,7 +371,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
           setGameMessage('Sem atacantes disponíveis. Encerrando turno...');
           setTimeout(() => {
             const endState = finishTurn(s);
-            setGameState(endState);
+            commitGameState(endState, true);
             setGameMessage('');
           }, 800);
         }
@@ -449,7 +462,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
           setGameMessage('Sem atacantes disponíveis. Encerrando turno...');
           setTimeout(() => {
             const endState = finishTurn(s);
-            setGameState(endState);
+            commitGameState(endState, true);
             setGameMessage('');
           }, 800);
         }
@@ -873,7 +886,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                     className="px-5 py-2 bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 disabled:from-slate-800 disabled:to-slate-800 text-white text-sm rounded-lg font-bold transition-all shadow-lg shadow-rose-900/30 disabled:shadow-none">
                     Declarar Ataque
                   </button>
-                  <button onClick={() => { resetSelections(); setGameState(finishTurn(gameState)); }}
+                  <button onClick={() => { resetSelections(); commitGameState(finishTurn(gameState), true); }}
                     className="px-4 py-2 bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 text-white text-sm rounded-lg font-bold transition-all flex items-center gap-2 shadow-lg shadow-blue-900/30">
                     Encerrar Turno
                   </button>
