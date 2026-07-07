@@ -253,8 +253,11 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
       ? 'win'
       : 'loss';
     const opponentIndex = (1 - playerNumber) as PlayerIndex;
-    const finishReason = gameState.log.some(line => line.toLowerCase().includes('inatividade'))
+    const normalizedLog = gameState.log.join(' ').toLowerCase();
+    const finishReason = normalizedLog.includes('inatividade')
       ? 'inactivity'
+      : normalizedLog.includes('desist')
+      ? 'surrender'
       : 'normal';
 
     void savePlayerMatchResult({

@@ -182,6 +182,26 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const myLabel = myDisplayName;
   const timerOwnerLabel = gameState.currentPlayer === myIdx ? myDisplayName : oppDisplayName;
 
+  const handleSurrender = () => {
+    if (gameState.gameOver) return;
+    const finalState: GameState = {
+      ...gameState,
+      gameOver: true,
+      winner: oppIdx,
+      pendingEffect: null,
+      stateVersion: isPvP ? (gameState.stateVersion ?? 0) + 1 : gameState.stateVersion,
+      log: [
+        ...gameState.log,
+        `${myLabel} desistiu da partida.`,
+        `${oppLabel} venceu por desistência.`,
+      ],
+    };
+
+    resetSelections();
+    commitGameState(finalState, true);
+    onGameEnd(oppIdx, finalState);
+  };
+
   const handleDeclareAttackPhase = () => {
     if (!isPlayerTurn || gameState.gameOver) return;
     setGameState(s => ({ ...s, phase: 'attack' }));
@@ -824,7 +844,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                 <button
                   onClick={() => {
                     setSurrenderConfirm(false);
-                    onGameEnd(oppIdx);
+                    handleSurrender();
                   }}
                   className="px-4 py-2 bg-rose-700 hover:bg-rose-600 text-white text-sm rounded-lg font-bold transition-colors"
                 >
