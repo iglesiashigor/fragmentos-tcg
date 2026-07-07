@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { DeckDefinition } from '../types/game';
 import { useAuth } from '../lib/authContext';
@@ -38,8 +38,6 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
   const [roomDetail, setRoomDetail] = useState<GameRoom | null>(null);
   const [error, setError] = useState('');
   const [inQueue, setInQueue] = useState(false);
-  const [queueId, setQueueId] = useState<string | null>(null);
-  const queueIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { signOut } = useAuth();
   const { decks: dbDecks } = useDecks();
   const allDecks = user ? dbDecks : decks;
@@ -55,6 +53,7 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
       .from('game_rooms')
       .select('*')
       .eq('status', 'waiting')
+      .is('player2_id', null)
       .order('created_at', { ascending: false });
     if (!error && data) {
       setRooms(data);
@@ -67,10 +66,6 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
     const interval = setInterval(fetchRooms, 10000);
     return () => clearInterval(interval);
   }, [fetchRooms]);
-
-  useEffect(() => () => {
-    if (queueIntervalRef.current) clearInterval(queueIntervalRef.current);
-  }, []);
 
   useEffect(() => {
     if (!myRoom) return;
@@ -122,6 +117,7 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
         player2_id: null,
         player2_deck_id: null,
         player1_ready: true,
+        status: 'waiting',
       })
       .select('*')
       .single();
@@ -135,10 +131,11 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
     setCreating(false);
   };
 
-  const joinRoom = async (roomId: string) => {
+  const joinRoom = async (roomId: string, startImmediately = true) => {
     if (!user) { onShowAuth(); return; }
     if (!selectedDeck) { setError('Selecione um baralho.'); return; }
-    const { error } = await supabase
+    setError('');
+    const { data, error } = await supabase
       .from('game_rooms')
       .update({
         player2_id: user.id,
@@ -147,14 +144,25 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
         status: 'active',
       })
       .eq('id', roomId)
-      .eq('status', 'waiting');
+      .eq('status', 'waiting')
+      .is('player2_id', null)
+      .neq('player1_id', user.id)
+      .select('id')
+      .maybeSingle();
     if (error) {
       setError(error.message);
-    } else {
-      setMyRoom(roomId);
-      onGameStart(roomId);
-      fetchRooms();
+      return false;
     }
+    if (!data) {
+      setError('Essa sala ja foi preenchida. Tente buscar novamente.');
+      fetchRooms();
+      return false;
+    }
+
+    setMyRoom(roomId);
+    if (startImmediately) onGameStart(roomId);
+    fetchRooms();
+    return true;
   };
 
   const deleteRoom = async (roomId: string) => {
@@ -172,76 +180,61 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
   const joinQueue = async () => {
     if (!user) { onShowAuth(); return; }
     if (!selectedDeck) { setError('Selecione um baralho.'); return; }
+    setError('');
     setInQueue(true);
-    const { data, error } = await supabase
-      .from('matchmaking_queue')
-      .insert({
-        user_id: user.id,
-        deck_id: selectedDeck,
-      })
-      .select('id')
-      .single();
-    if (error) {
-      setError(error.message);
+
+    const { data: waitingRoom, error: roomError } = await supabase
+      .from('game_rooms')
+      .select('*')
+      .eq('status', 'waiting')
+      .is('player2_id', null)
+      .neq('player1_id', user.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (roomError) {
+      setError(roomError.message);
       setInQueue(false);
-    } else if (data) {
-      setQueueId(data.id);
-      if (queueIntervalRef.current) clearInterval(queueIntervalRef.current);
-      queueIntervalRef.current = setInterval(async () => {
-        const { data: match } = await supabase
-          .from('matchmaking_queue')
-          .select('*')
-          .eq('id', data.id)
-          .eq('status', 'matched')
-          .maybeSingle();
-        if (match) {
-          if (queueIntervalRef.current) clearInterval(queueIntervalRef.current);
-          queueIntervalRef.current = null;
-          setInQueue(false);
-          // Would navigate to PvP game board
-        }
-      }, 5000);
-      // Also try to find a waiting opponent
-      const { data: opponent } = await supabase
-        .from('matchmaking_queue')
-        .select('*')
-        .eq('status', 'waiting')
-        .neq('user_id', user.id)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (opponent) {
-        // Create a game room with the opponent
-        const { data: room } = await supabase
-          .from('game_rooms')
-          .insert({
-            player1_id: opponent.user_id,
-            player2_id: user.id,
-            player1_deck_id: opponent.deck_id,
-            player2_deck_id: selectedDeck,
-            status: 'active',
-          })
-          .select('id')
-          .single();
-        if (room) {
-          await supabase.from('matchmaking_queue').update({ status: 'matched' }).eq('id', opponent.id);
-          await supabase.from('matchmaking_queue').update({ status: 'matched' }).eq('id', data.id);
-          if (queueIntervalRef.current) clearInterval(queueIntervalRef.current);
-          queueIntervalRef.current = null;
-          setInQueue(false);
-          setMyRoom(room.id);
-        }
-      }
+      return;
     }
+
+    if (waitingRoom) {
+      const joined = await joinRoom(waitingRoom.id);
+      setInQueue(false);
+      if (!joined) void fetchRooms();
+      return;
+    }
+
+    const { data: createdRoom, error: createError } = await supabase
+      .from('game_rooms')
+      .insert({
+        player1_id: user.id,
+        player1_deck_id: selectedDeck,
+        player2_id: null,
+        player2_deck_id: null,
+        player1_ready: true,
+        status: 'waiting',
+      })
+      .select('*')
+      .single();
+
+    if (createError) {
+      setError(createError.message);
+    } else if (createdRoom) {
+      setMyRoom(createdRoom.id);
+      setRoomDetail(createdRoom);
+      void fetchRooms();
+    }
+
+    setInQueue(false);
   };
 
   const cancelQueue = async () => {
-    if (!queueId) return;
-    await supabase.from('matchmaking_queue').delete().eq('id', queueId);
-    if (queueIntervalRef.current) clearInterval(queueIntervalRef.current);
-    queueIntervalRef.current = null;
+    if (myRoom) {
+      await deleteRoom(myRoom);
+    }
     setInQueue(false);
-    setQueueId(null);
   };
 
   if (roomDetail) {
