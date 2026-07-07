@@ -193,6 +193,30 @@ export async function fetchPlayerProgress(playerId: string) {
   return { data: data as PlayerProgress | null, error: error?.message ?? null };
 }
 
+export async function equipProfileFrame(playerId: string, frameId: string) {
+  const { data: current, error: fetchError } = await fetchPlayerProgress(playerId);
+  if (fetchError) return { error: fetchError };
+
+  const unlockedFrames = current?.unlocked_profile_frames ?? ['default'];
+  if (!unlockedFrames.includes(frameId)) {
+    return { error: 'Moldura ainda nao liberada.' };
+  }
+
+  const payload = {
+    player_id: playerId,
+    equipped_profile_frame: frameId,
+    unlocked_profile_frames: unlockedFrames,
+    supporter: current?.supporter ?? false,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase
+    .from('player_progress')
+    .upsert(payload, { onConflict: 'player_id' });
+
+  return { error: error?.message ?? null };
+}
+
 export async function saveMatchProgress(input: MatchProgressInput) {
   const today = getTodayKey();
   const { data: current, error: fetchError } = await fetchPlayerProgress(input.playerId);
