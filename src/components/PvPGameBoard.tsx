@@ -7,6 +7,7 @@ import { ArrowLeft, Radio, Loader2, Trophy, Home, Star } from 'lucide-react';
 import GameBoard from './GameBoard';
 import { getSavedDecks } from '../data/defaultDecks';
 import { savePlayerMatchResult, MatchResult } from '../lib/ranking';
+import { saveMatchProgress } from '../lib/progression';
 
 interface PvPGameBoardProps {
   roomId: string;
@@ -271,7 +272,14 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
       heroId: gameState.players[playerNumber].hero.cardId,
       opponentHeroId: gameState.players[opponentIndex].hero.cardId,
       turns: gameState.turnNumber,
-    }).then(() => refreshProfile());
+    })
+      .then(() => saveMatchProgress({
+        playerId: user.id,
+        mode: 'pvp',
+        result,
+        stats: gameState.matchStats?.[playerNumber] ?? null,
+      }))
+      .then(() => refreshProfile());
   }, [gameState, playerIds, playerNames, playerNumber, refreshProfile, roomId, user]);
 
   const handleStateChange = useCallback(async (newState: GameState) => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Bot, Calendar, Crown, Gem, Medal, Shield, Sparkles, Trophy, Users } from 'lucide-react';
+import { ArrowLeft, Award, Bot, Calendar, CheckCircle2, Crown, Gem, Medal, Shield, Sparkles, Target, Trophy, Users } from 'lucide-react';
 import { useAuth } from '../lib/authContext';
 import {
   fetchPlayerHistory,
@@ -9,6 +9,15 @@ import {
   RankingProfile,
   summarizeHistory,
 } from '../lib/ranking';
+import {
+  calculateLevelFromXp,
+  DAILY_MISSIONS,
+  fetchPlayerProgress,
+  getTodayKey,
+  PlayerProgress,
+  PROFILE_FRAMES,
+  xpNeededForLevel,
+} from '../lib/progression';
 import { getCardById } from '../data/cards';
 
 interface PlayerProfileProps {
@@ -16,7 +25,7 @@ interface PlayerProfileProps {
   onShowAuth: () => void;
 }
 
-type Tab = 'overview' | 'history' | 'ranking';
+type Tab = 'overview' | 'missions' | 'history' | 'ranking';
 
 function resultLabel(result: PlayerMatchResult['result']) {
   if (result === 'win') return 'Vitoria';
@@ -45,6 +54,7 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
   const [historyMode, setHistoryMode] = useState<'all' | 'pvp' | 'ai'>('all');
   const [history, setHistory] = useState<PlayerMatchResult[]>([]);
   const [ranking, setRanking] = useState<RankingProfile[]>([]);
+  const [progress, setProgress] = useState<PlayerProgress | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -56,13 +66,15 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
     let mounted = true;
     const load = async () => {
       setLoading(true);
-      const [historyResult, rankingResult] = await Promise.all([
+      const [historyResult, rankingResult, progressResult] = await Promise.all([
         fetchPlayerHistory(user.id),
         fetchRanking(),
+        fetchPlayerProgress(user.id),
       ]);
       if (!mounted) return;
       setHistory(historyResult.data);
       setRanking(rankingResult.data);
+      setProgress(progressResult.data);
       setLoading(false);
     };
 
@@ -79,6 +91,13 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
   const pvpTotal = summary.pvpWins + summary.pvpLosses + summary.pvpDraws;
   const winRate = pvpTotal > 0 ? Math.round((summary.pvpWins / pvpTotal) * 100) : 0;
   const myPosition = user ? ranking.findIndex(item => item.id === user.id) + 1 : 0;
+  const levelInfo = calculateLevelFromXp(progress?.total_xp ?? 0);
+  const xpToNext = xpNeededForLevel(levelInfo.level);
+  const xpPercent = Math.min(100, Math.round((levelInfo.xp / xpToNext) * 100));
+  const today = getTodayKey();
+  const missionProgress = progress?.daily_mission_date === today ? progress.mission_progress : {};
+  const completedMissions = new Set(progress?.daily_mission_date === today ? progress.completed_daily_missions : []);
+  const equippedFrame = PROFILE_FRAMES.find(frame => frame.id === progress?.equipped_profile_frame) ?? PROFILE_FRAMES[0];
 
   if (!user) {
     return (
@@ -118,7 +137,7 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className={`rounded-2xl border border-slate-700 bg-gradient-to-br ${rank.bg} p-5 mb-5 shadow-2xl shadow-black/20`}>
           <div className="flex flex-col md:flex-row md:items-center gap-5">
-            <div className="w-20 h-20 rounded-2xl bg-slate-950/70 border border-white/10 flex items-center justify-center shrink-0">
+            <div className={`w-20 h-20 rounded-2xl border-2 flex items-center justify-center shrink-0 shadow-lg ${equippedFrame.className}`}>
               <Gem className={`w-10 h-10 ${rank.color}`} />
             </div>
             <div className="flex-1">
@@ -131,11 +150,28 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
                 <span className="px-3 py-1 rounded-full bg-slate-950/70 border border-white/10 text-sm text-slate-300">
                   {rating} pontos
                 </span>
+                <span className="px-3 py-1 rounded-full bg-slate-950/70 border border-white/10 text-sm text-blue-200">
+                  Nivel {levelInfo.level}
+                </span>
+                {progress?.supporter && (
+                  <span className="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-300/30 text-sm text-amber-200">
+                    Apoiador
+                  </span>
+                )}
                 {myPosition > 0 && (
                   <span className="px-3 py-1 rounded-full bg-slate-950/70 border border-white/10 text-sm text-amber-300">
                     #{myPosition} no ranking
                   </span>
                 )}
+              </div>
+              <div className="mt-4 max-w-md">
+                <div className="flex justify-between text-xs text-slate-400 mb-1">
+                  <span>XP do nivel</span>
+                  <span>{levelInfo.xp}/{xpToNext}</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-950/80 border border-white/10 overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-blue-500 to-amber-400" style={{ width: `${xpPercent}%` }} />
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2 min-w-[17rem]">
@@ -149,6 +185,7 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
         <div className="flex gap-2 mb-5">
           {[
             ['overview', 'Resumo', Sparkles],
+            ['missions', 'Missoes', Target],
             ['history', 'Historico', Calendar],
             ['ranking', 'Ranking', Trophy],
           ].map(([id, label, Icon]) => (
@@ -187,7 +224,56 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
                 <StatBox label="Empates" value={summary.aiDraws} tone="slate" />
               </div>
             </Panel>
+            <Panel title="Cosmeticos" icon={<Award className="w-4 h-4 text-amber-300" />}>
+              <div className="grid sm:grid-cols-3 gap-2">
+                {PROFILE_FRAMES.map(frame => {
+                  const unlocked = (progress?.unlocked_profile_frames ?? ['default']).includes(frame.id);
+                  return (
+                    <div key={frame.id} className={`rounded-xl border p-3 ${unlocked ? 'border-slate-700 bg-slate-950/70' : 'border-slate-800 bg-slate-950/30 opacity-60'}`}>
+                      <div className={`w-12 h-12 rounded-xl border-2 mb-3 ${frame.className}`} />
+                      <p className="text-sm font-bold text-white">{frame.name}</p>
+                      <p className="text-xs text-slate-500">{frame.description}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </Panel>
           </div>
+        ) : tab === 'missions' ? (
+          <Panel title="Missoes diarias" icon={<Target className="w-4 h-4 text-amber-300" />}>
+            <div className="grid md:grid-cols-2 gap-3">
+              {DAILY_MISSIONS.map(mission => {
+                const current = Math.min(mission.target, missionProgress[mission.id] ?? 0);
+                const done = completedMissions.has(mission.id);
+                const percent = Math.min(100, Math.round((current / mission.target) * 100));
+                return (
+                  <div key={mission.id} className={`rounded-xl border p-4 ${done ? 'border-emerald-500/35 bg-emerald-950/20' : 'border-slate-800 bg-slate-950/60'}`}>
+                    <div className="flex items-start gap-3">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center border ${done ? 'bg-emerald-500/20 border-emerald-400/40' : 'bg-slate-900 border-slate-700'}`}>
+                        {done ? <CheckCircle2 className="w-5 h-5 text-emerald-300" /> : <Target className="w-5 h-5 text-amber-300" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-3">
+                          <h3 className="font-black text-white text-sm">{mission.title}</h3>
+                          <span className="text-xs font-bold text-blue-200">+{mission.xpReward} XP</span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">{mission.description}</p>
+                        <div className="mt-3">
+                          <div className="flex justify-between text-[11px] text-slate-500 mb-1">
+                            <span>Progresso</span>
+                            <span>{current}/{mission.target}</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-slate-900 border border-slate-800 overflow-hidden">
+                            <div className={`h-full ${done ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ width: `${percent}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Panel>
         ) : tab === 'history' ? (
           <Panel title="Historico de partidas" icon={<Calendar className="w-4 h-4 text-blue-300" />}>
             <div className="flex gap-2 mb-4">

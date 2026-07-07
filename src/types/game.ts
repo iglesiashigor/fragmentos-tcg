@@ -101,6 +101,15 @@ export interface PlayerState {
   unitSlotBonus: number;
 }
 
+export interface MatchStats {
+  unitsPlayed: number;
+  spellsCast: number;
+  itemsEquipped: number;
+  terrainsPlayed: number;
+  turnsEnded: number;
+  attacksDeclared: number;
+}
+
 export interface GameState {
   players: [PlayerState, PlayerState];
   currentPlayer: PlayerIndex;
@@ -116,6 +125,7 @@ export interface GameState {
   turnStartedAt?: number;
   inactivityFaults?: [number, number];
   stateVersion?: number;
+  matchStats?: [MatchStats, MatchStats];
 }
 
 export interface PendingEffect {

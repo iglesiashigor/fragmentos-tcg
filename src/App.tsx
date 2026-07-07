@@ -16,6 +16,7 @@ import MatchmakingScreen from './components/MatchmakingScreen';
 import PvPGameBoard from './components/PvPGameBoard';
 import PlayerProfile from './components/PlayerProfile';
 import { savePlayerMatchResult } from './lib/ranking';
+import { saveMatchProgress } from './lib/progression';
 
 type Screen = 'menu' | 'deckBuilder' | 'collection' | 'coinFlip' | 'game' | 'gameOver' | 'matchmaking' | 'pvpGame' | 'profile';
 
@@ -84,7 +85,14 @@ function AppContent() {
         heroId: stateToSave.players[0].hero.cardId,
         opponentHeroId: stateToSave.players[1].hero.cardId,
         turns: stateToSave.turnNumber,
-      }).then(() => refreshProfile());
+      })
+        .then(() => saveMatchProgress({
+          playerId: user.id,
+          mode: 'ai',
+          result,
+          stats: stateToSave.matchStats?.[0] ?? null,
+        }))
+        .then(() => refreshProfile());
     }
     setWinner(w);
     setScreen('gameOver');

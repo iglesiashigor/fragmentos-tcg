@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  GameState, PlayerIndex, BattleCard, CardDefinition, CardEffect, CardType,
+  GameState, PlayerIndex, BattleCard, CardDefinition, CardEffect, CardType, MatchStats,
 } from '../types/game';
 import {
   playUnit, playTerrain, playSpell, attachEquipment, attachMount,
@@ -61,6 +61,15 @@ const negativeConditions = [
   'vulnerable',
 ];
 
+const emptyMatchStats = (): MatchStats => ({
+  unitsPlayed: 0,
+  spellsCast: 0,
+  itemsEquipped: 0,
+  terrainsPlayed: 0,
+  turnsEnded: 0,
+  attacksDeclared: 0,
+});
+
 export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChange, myPlayerIndex = 0, playerNames, pvpTimer }: GameBoardProps) {
   const [gameState, setGameState] = useState<GameState>(initialState);
   const [, setSelectedCard] = useState<CardDefinition | BattleCard | null>(null);
@@ -116,6 +125,16 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const isPlayerTurn = gameState.currentPlayer === myIdx;
   const isMainPhase = gameState.phase === 'main';
   const isAttackPhase = gameState.phase === 'attack';
+
+  const addMatchStat = (state: GameState, playerIndex: PlayerIndex, key: keyof MatchStats, amount = 1): GameState => {
+    const stats = state.matchStats ?? [emptyMatchStats(), emptyMatchStats()];
+    const nextStats = [...stats] as [MatchStats, MatchStats];
+    nextStats[playerIndex] = {
+      ...nextStats[playerIndex],
+      [key]: nextStats[playerIndex][key] + amount,
+    };
+    return { ...state, matchStats: nextStats };
+  };
 
   const finishTurn = (state: GameState): GameState => {
     const nextState = endTurn(state);
@@ -176,7 +195,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const handleEndTurn = () => {
     if (!isPlayerTurn || gameState.gameOver) return;
     resetSelections();
-    const s = finishTurn(gameState);
+    const s = finishTurn(addMatchStat(gameState, myIdx, 'turnsEnded'));
     commitGameState(s, true);
   };
   const myLabel = myDisplayName;
@@ -414,13 +433,13 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
       if (player.units.length >= getUnitSlots(player)) { setGameMessage('Sem espaço para unidades!'); return; }
       if (!bypassRecoverConfirm && requestRecoverConfirmation(card, 'onSummon', () => handleCardFromHand(card, true))) return;
-      const s = clearUnavailableRecoverSelection(playUnit(gameState, myIdx, card, true));
+      const s = addMatchStat(clearUnavailableRecoverSelection(playUnit(gameState, myIdx, card, true)), myIdx, 'unitsPlayed');
       setGameState(s);
       handlePendingEffectFromState(s);
     } else if (card.type === 'terrain') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
       if (!bypassRecoverConfirm && requestRecoverConfirmation(card, 'onPlay', () => handleCardFromHand(card, true))) return;
-      const s = clearUnavailableRecoverSelection(playTerrain(gameState, myIdx, card));
+      const s = addMatchStat(clearUnavailableRecoverSelection(playTerrain(gameState, myIdx, card)), myIdx, 'terrainsPlayed');
       setGameState(s);
     } else if (card.type === 'spell') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
@@ -436,9 +455,9 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
         const unavailableRecoverEffect = getUnavailableRecoverEffect(card, 'onPlay');
         if (!bypassRecoverConfirm && requestRecoverConfirmation(card, 'onPlay', () => handleCardFromHand(card, true))) return;
         const playedState = playSpell(gameState, myIdx, card);
-        const s = unavailableRecoverEffect
+        const s = addMatchStat(unavailableRecoverEffect
           ? clearRecoverSelection(playedState)
-          : clearUnavailableRecoverSelection(playedState);
+          : clearUnavailableRecoverSelection(playedState), myIdx, 'spellsCast');
         setGameState(s);
         handlePendingEffectFromState(s);
         return;
@@ -465,7 +484,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
         }
         return;
       }
-      const s = playSpell(gameState, myIdx, card);
+      const s = addMatchStat(playSpell(gameState, myIdx, card), myIdx, 'spellsCast');
       setGameState(s);
       handlePendingEffectFromState(s, bypassRecoverConfirm);
     } else if (card.type === 'equipment') {
@@ -523,7 +542,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
 
     if (selectionMode === 'selectSpellTarget' && validTargets.includes(card.instanceId)) {
       if (pendingSpell) {
-        const s = playSpell(gameState, myIdx, pendingSpell, card.instanceId);
+        const s = addMatchStat(playSpell(gameState, myIdx, pendingSpell, card.instanceId), myIdx, 'spellsCast');
         setGameState(s);
         handlePendingEffectFromState(s);
         resetSelections();
@@ -532,7 +551,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     }
 
     if (selectionMode === 'selectEquipTarget' && validTargets.includes(card.instanceId) && pendingEquip) {
-      const s = attachEquipment(gameState, myIdx, pendingEquip, card.instanceId);
+      const s = addMatchStat(attachEquipment(gameState, myIdx, pendingEquip, card.instanceId), myIdx, 'itemsEquipped');
       setGameState(s);
       if (s.log[gameState.log.length]?.includes('já possui')) {
         setGameMessage('Alvo já possui equipamento!');
@@ -542,7 +561,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     }
 
     if (selectionMode === 'selectMountTarget' && validTargets.includes(card.instanceId) && pendingMount) {
-      const s = attachMount(gameState, myIdx, pendingMount, card.instanceId);
+      const s = addMatchStat(attachMount(gameState, myIdx, pendingMount, card.instanceId), myIdx, 'itemsEquipped');
       setGameState(s);
       if (s.log[gameState.log.length]?.includes('já possui')) {
         setGameMessage('Alvo já possui montaria!');
@@ -594,7 +613,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
 
     if (selectionMode === 'selectAttackTarget' && owner === oppIdx) {
       if (!validTargets.includes(card.instanceId)) { setGameMessage('Alvo inválido!'); return; }
-      const s = resolveAttack(gameState, myIdx, selectedAttackers, card.instanceId);
+      const s = addMatchStat(resolveAttack(gameState, myIdx, selectedAttackers, card.instanceId), myIdx, 'attacksDeclared');
       setGameState(s);
 
       // Check if any attackers remain
@@ -609,7 +628,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
         if (!s.gameOver) {
           setGameMessage('Sem atacantes disponíveis. Encerrando turno...');
           setTimeout(() => {
-            const endState = finishTurn(s);
+            const endState = finishTurn(addMatchStat(s, myIdx, 'turnsEnded'));
             commitGameState(endState, true);
             setGameMessage('');
           }, 800);
@@ -632,7 +651,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
 
     if (selectionMode === 'selectSpellTarget' && validTargets.includes(hero.instanceId)) {
       if (pendingSpell) {
-        const s = playSpell(gameState, myIdx, pendingSpell, hero.instanceId);
+        const s = addMatchStat(playSpell(gameState, myIdx, pendingSpell, hero.instanceId), myIdx, 'spellsCast');
         setGameState(s);
         handlePendingEffectFromState(s);
         resetSelections();
@@ -641,14 +660,14 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     }
 
     if (selectionMode === 'selectEquipTarget' && validTargets.includes(hero.instanceId) && pendingEquip) {
-      const s = attachEquipment(gameState, myIdx, pendingEquip, hero.instanceId);
+      const s = addMatchStat(attachEquipment(gameState, myIdx, pendingEquip, hero.instanceId), myIdx, 'itemsEquipped');
       setGameState(s);
       resetSelections();
       return;
     }
 
     if (selectionMode === 'selectMountTarget' && validTargets.includes(hero.instanceId) && pendingMount) {
-      const s = attachMount(gameState, myIdx, pendingMount, hero.instanceId);
+      const s = addMatchStat(attachMount(gameState, myIdx, pendingMount, hero.instanceId), myIdx, 'itemsEquipped');
       setGameState(s);
       resetSelections();
       return;
@@ -687,7 +706,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
 
     if (selectionMode === 'selectAttackTarget' && owner === oppIdx) {
       if (!validTargets.includes(hero.instanceId)) { setGameMessage('Não pode atacar o herói diretamente!'); return; }
-      const s = resolveAttack(gameState, myIdx, selectedAttackers, hero.instanceId);
+      const s = addMatchStat(resolveAttack(gameState, myIdx, selectedAttackers, hero.instanceId), myIdx, 'attacksDeclared');
       setGameState(s);
 
       // Check if any attackers remain
@@ -702,7 +721,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
         if (!s.gameOver) {
           setGameMessage('Sem atacantes disponíveis. Encerrando turno...');
           setTimeout(() => {
-            const endState = finishTurn(s);
+            const endState = finishTurn(addMatchStat(s, myIdx, 'turnsEnded'));
             commitGameState(endState, true);
             setGameMessage('');
           }, 800);
@@ -1229,7 +1248,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                     className="px-5 py-2 bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 disabled:from-slate-800 disabled:to-slate-800 text-white text-sm rounded-lg font-bold transition-all shadow-lg shadow-rose-900/30 disabled:shadow-none">
                     Declarar Ataque
                   </button>
-                  <button onClick={() => { resetSelections(); commitGameState(finishTurn(gameState), true); }}
+                  <button onClick={() => { resetSelections(); commitGameState(finishTurn(addMatchStat(gameState, myIdx, 'turnsEnded')), true); }}
                     className="px-4 py-2 bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 text-white text-sm rounded-lg font-bold transition-all flex items-center gap-2 shadow-lg shadow-blue-900/30">
                     Encerrar Turno
                   </button>
