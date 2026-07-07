@@ -49,6 +49,18 @@ interface RecoverConfirmState {
   onConfirm: () => void;
 }
 
+const negativeConditions = [
+  'burned',
+  'poisoned',
+  'bleeding',
+  'frozen',
+  'paralyzed',
+  'silenced',
+  'weakened',
+  'defenseless',
+  'vulnerable',
+];
+
 export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChange, myPlayerIndex = 0, playerNames, pvpTimer }: GameBoardProps) {
   const [gameState, setGameState] = useState<GameState>(initialState);
   const [, setSelectedCard] = useState<CardDefinition | BattleCard | null>(null);
@@ -202,6 +214,12 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const hasRecoverTargetInDiscard = (eff: CardEffect) =>
     player.discard.some(c => !eff.cardType || c.type === eff.cardType);
 
+  const allies = [player.hero, ...player.units];
+  const isDamaged = (card: BattleCard) => card.currentHealth < card.maxHealth;
+  const hasNegativeCondition = (card: BattleCard) =>
+    card.conditions.some(condition => negativeConditions.includes(condition.name));
+  const hasUsedAttack = (card: BattleCard) => card.exhausted;
+
   const hasRecoverEffect = (
     card: CardDefinition | BattleCard,
     timing?: CardEffect['timing'],
@@ -289,6 +307,59 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     return true;
   };
 
+  const requestNoUsefulEffectConfirmation = (
+    card: CardDefinition | BattleCard,
+    timing: CardEffect['timing'],
+    onConfirm: () => void,
+  ) => {
+    const effects = card.effects.filter(e => e.timing === timing);
+    if (effects.length === 0) return false;
+
+    const hasNoUsefulTarget = effects.some(e => {
+      if (e.type === 'heal') return !allies.some(isDamaged);
+      if (e.type === 'healAllUnits') return !allies.some(isDamaged);
+      if (e.type === 'removeCondition') return !allies.some(hasNegativeCondition);
+      if (e.type === 'removeAllNegativeConditions') return !allies.some(hasNegativeCondition);
+      if (e.type === 'attackAgain') return !allies.some(hasUsedAttack);
+      if (e.type === 'allUnitsAttackTwice') return !allies.some(hasUsedAttack);
+      if (e.type === 'bonusAttackPerDamageTaken') return !allies.some(isDamaged);
+      return false;
+    });
+
+    if (!hasNoUsefulTarget) return false;
+
+    setRecoverConfirm({
+      cardName: card.name,
+      title: 'Sem alvo util',
+      message: <>Nao ha alvo que aproveite esse efeito agora. Deseja usar mesmo assim?</>,
+      onConfirm,
+    });
+    return true;
+  };
+
+  const getUsefulSpellTargets = (card: CardDefinition, candidates: BattleCard[]) => {
+    const effects = card.effects.filter(e => e.timing === 'onPlay');
+    if (effects.some(e => e.type === 'heal')) {
+      return candidates.filter(isDamaged);
+    }
+    if (effects.some(e => e.type === 'removeCondition')) {
+      return candidates.filter(hasNegativeCondition);
+    }
+    if (effects.some(e => e.type === 'attackAgain')) {
+      return candidates.filter(hasUsedAttack);
+    }
+    if (effects.some(e => e.type === 'bonusAttackPerDamageTaken')) {
+      return candidates.filter(isDamaged);
+    }
+    return candidates;
+  };
+
+  const getUsefulActivatedTargets = (eff: CardEffect, units: BattleCard[]) => {
+    if (eff.type === 'heal') return units.filter(isDamaged);
+    if (eff.type === 'attackAgain') return units.filter(hasUsedAttack);
+    return units;
+  };
+
   const clearUnavailableRecoverSelection = (state: GameState) => {
     const pendingRecover = state.pendingEffect?.effect?.type === 'recoverFromDiscard'
       ? state.pendingEffect.effect
@@ -334,6 +405,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
       if (!bypassRecoverConfirm && requestDestroyTerrainConfirmation(card, () => handleCardFromHand(card, true))) return;
       if (!bypassRecoverConfirm && requestRepairEquipmentConfirmation(card, () => handleCardFromHand(card, true))) return;
+      if (!bypassRecoverConfirm && requestNoUsefulEffectConfirmation(card, 'onPlay', () => handleCardFromHand(card, true))) return;
       const needsTarget = card.effects.some(e =>
         ['damage', 'heal', 'applyCondition', 'attackAgain', 'bonusAttackPerDamageTaken', 'removeCondition', 'attackBonus'].includes(e.type) &&
         (e.target === 'anyUnit' || e.target === 'ally' || e.target === 'enemy')
@@ -365,14 +437,16 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
           setSelectionMode('selectSpellTarget');
         } else {
           // Ally-only targeting (heals, buffs, removeCondition)
-          setValidTargets([player.hero.instanceId, ...player.units.map(u => u.instanceId)]);
+          const allyTargets = [player.hero, ...player.units];
+          const targets = bypassRecoverConfirm ? allyTargets : getUsefulSpellTargets(card, allyTargets);
+          setValidTargets(targets.map(u => u.instanceId));
           setSelectionMode('selectSpellTarget');
         }
         return;
       }
       const s = playSpell(gameState, myIdx, card);
       setGameState(s);
-      handlePendingEffectFromState(s);
+      handlePendingEffectFromState(s, bypassRecoverConfirm);
     } else if (card.type === 'equipment') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
       if (!bypassRecoverConfirm && requestRecoverConfirmation(card, 'onPlay', () => handleCardFromHand(card, true))) return;
@@ -406,11 +480,14 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     }
   };
 
-  const handlePendingEffectFromState = (s: GameState) => {
+  const handlePendingEffectFromState = (s: GameState, allowAllTargets = false) => {
     if (s.pendingEffect) {
       const pe = s.pendingEffect;
       if (pe.type === 'selectAllyUnit') {
-        setValidTargets(s.players[myIdx].units.map(u => u.instanceId));
+        if (!pe.effect) return;
+        const units = s.players[myIdx].units;
+        const targets = allowAllTargets ? units : getUsefulActivatedTargets(pe.effect, units);
+        setValidTargets(targets.map(u => u.instanceId));
         setPendingEffectCard({ card: pe.sourceCard!, eff: pe.effect });
         setSelectionMode('selectAllyForEffect');
       } else if (pe.type === 'selectTarget' && pe.effect?.type === 'recoverFromDiscard') {
@@ -632,9 +709,10 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const handleActivateAbility = (unit: BattleCard, bypassRecoverConfirm = false) => {
     if (!isPlayerTurn || gameState.gameOver) return;
     if (!bypassRecoverConfirm && requestRecoverConfirmation(unit, 'activated', () => handleActivateAbility(unit, true))) return;
+    if (!bypassRecoverConfirm && requestNoUsefulEffectConfirmation(unit, 'activated', () => handleActivateAbility(unit, true))) return;
     const s = clearUnavailableRecoverSelection(activateAbility(gameState, myIdx, unit.instanceId, true));
     setGameState(s);
-    handlePendingEffectFromState(s);
+    handlePendingEffectFromState(s, bypassRecoverConfirm);
   };
 
   const handleDiscardCardSelect = (card: CardDefinition) => {
