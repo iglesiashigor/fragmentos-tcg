@@ -12,6 +12,7 @@ import {
 import {
   calculateLevelFromXp,
   DAILY_MISSIONS,
+  equipProfileFrame,
   fetchPlayerProgress,
   getTodayKey,
   PlayerProgress,
@@ -56,6 +57,8 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
   const [ranking, setRanking] = useState<RankingProfile[]>([]);
   const [progress, setProgress] = useState<PlayerProgress | null>(null);
   const [loading, setLoading] = useState(true);
+  const [savingFrame, setSavingFrame] = useState<string | null>(null);
+  const [frameMessage, setFrameMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -98,6 +101,42 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
   const missionProgress = progress?.daily_mission_date === today ? progress.mission_progress : {};
   const completedMissions = new Set(progress?.daily_mission_date === today ? progress.completed_daily_missions : []);
   const equippedFrame = PROFILE_FRAMES.find(frame => frame.id === progress?.equipped_profile_frame) ?? PROFILE_FRAMES[0];
+  const unlockedProfileFrames = progress?.unlocked_profile_frames ?? ['default'];
+
+  const handleEquipFrame = async (frameId: string) => {
+    if (!user || savingFrame) return;
+    if (!unlockedProfileFrames.includes(frameId)) {
+      setFrameMessage('Essa moldura ainda nao foi liberada.');
+      return;
+    }
+
+    setSavingFrame(frameId);
+    setFrameMessage(null);
+    const result = await equipProfileFrame(user.id, frameId);
+    if (result.error) {
+      setFrameMessage(result.error);
+    } else {
+      setProgress(current => ({
+        ...(current ?? {
+          player_id: user.id,
+          level: 1,
+          xp: 0,
+          total_xp: 0,
+          daily_mission_date: today,
+          mission_progress: {},
+          completed_daily_missions: [],
+          supporter: false,
+          unlocked_profile_frames: ['default'],
+          updated_at: new Date().toISOString(),
+        }),
+        equipped_profile_frame: frameId,
+        unlocked_profile_frames: current?.unlocked_profile_frames ?? ['default'],
+        updated_at: new Date().toISOString(),
+      }));
+      setFrameMessage('Moldura equipada.');
+    }
+    setSavingFrame(null);
+  };
 
   if (!user) {
     return (
@@ -227,16 +266,38 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
             <Panel title="Cosmeticos" icon={<Award className="w-4 h-4 text-amber-300" />}>
               <div className="grid sm:grid-cols-3 gap-2">
                 {PROFILE_FRAMES.map(frame => {
-                  const unlocked = (progress?.unlocked_profile_frames ?? ['default']).includes(frame.id);
+                  const unlocked = unlockedProfileFrames.includes(frame.id);
+                  const equipped = equippedFrame.id === frame.id;
                   return (
-                    <div key={frame.id} className={`rounded-xl border p-3 ${unlocked ? 'border-slate-700 bg-slate-950/70' : 'border-slate-800 bg-slate-950/30 opacity-60'}`}>
+                    <button
+                      key={frame.id}
+                      onClick={() => handleEquipFrame(frame.id)}
+                      disabled={!unlocked || savingFrame !== null}
+                      className={`text-left rounded-xl border p-3 transition-all ${
+                        equipped
+                          ? 'border-amber-400/70 bg-amber-950/25 shadow-lg shadow-amber-900/20'
+                          : unlocked
+                          ? 'border-slate-700 bg-slate-950/70 hover:border-slate-500 hover:bg-slate-900'
+                          : 'border-slate-800 bg-slate-950/30 opacity-60 cursor-not-allowed'
+                      }`}
+                    >
                       <div className={`w-12 h-12 rounded-xl border-2 mb-3 ${frame.className}`} />
-                      <p className="text-sm font-bold text-white">{frame.name}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-bold text-white">{frame.name}</p>
+                        <span className={`text-[10px] font-black uppercase ${
+                          equipped ? 'text-amber-200' : unlocked ? 'text-emerald-300' : 'text-slate-500'
+                        }`}>
+                          {equipped ? 'Em uso' : unlocked ? 'Usar' : 'Bloqueada'}
+                        </span>
+                      </div>
                       <p className="text-xs text-slate-500">{frame.description}</p>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
+              {frameMessage && (
+                <p className="mt-3 text-xs text-slate-400">{frameMessage}</p>
+              )}
             </Panel>
           </div>
         ) : tab === 'missions' ? (
