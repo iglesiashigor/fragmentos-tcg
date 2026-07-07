@@ -59,7 +59,7 @@ export function getCrystalRank(rating: number) {
 export function getRatingDelta(mode: MatchMode, result: MatchResult, finishReason: FinishReason) {
   if (mode === 'ai') return 0;
   if (result === 'draw') return 5;
-  if (result === 'win') return finishReason === 'inactivity' || finishReason === 'surrender' ? 20 : 25;
+  if (result === 'win') return finishReason === 'inactivity' || finishReason === 'surrender' ? 0 : 25;
   return finishReason === 'inactivity' || finishReason === 'surrender' ? -15 : -10;
 }
 
