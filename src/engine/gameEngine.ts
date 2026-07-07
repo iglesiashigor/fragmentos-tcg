@@ -1102,6 +1102,33 @@ export function resolveSpellEffects(
         };
         return s;
       }
+
+      const p = s.players[playerIdx];
+      const newPlayers = [...s.players] as [PlayerState, PlayerState];
+      if (p.hero.instanceId === targetId) {
+        newPlayers[playerIdx] = {
+          ...p,
+          hero: { ...p.hero, exhausted: false },
+        };
+        s = {
+          ...s,
+          players: newPlayers,
+          log: [...s.log, `${p.hero.name} pode atacar novamente.`],
+        };
+      } else {
+        const newUnits = p.units.map((u) =>
+          u.instanceId === targetId ? { ...u, exhausted: false } : u,
+        );
+        const target = p.units.find((u) => u.instanceId === targetId);
+        newPlayers[playerIdx] = { ...p, units: newUnits };
+        s = {
+          ...s,
+          players: newPlayers,
+          log: target
+            ? [...s.log, `${target.name} pode atacar novamente.`]
+            : s.log,
+        };
+      }
     }
 
     if (eff.type === "allUnitsAttackTwice") {
@@ -1132,6 +1159,38 @@ export function resolveSpellEffects(
           },
         };
         return s;
+      }
+
+      const p = s.players[playerIdx];
+      const newPlayers = [...s.players] as [PlayerState, PlayerState];
+      if (p.hero.instanceId === targetId) {
+        const bonus = p.hero.maxHealth - p.hero.currentHealth;
+        newPlayers[playerIdx] = {
+          ...p,
+          hero: { ...p.hero, currentAttack: p.hero.currentAttack + bonus },
+        };
+        s = {
+          ...s,
+          players: newPlayers,
+          log: [...s.log, `${p.hero.name} recebe +${bonus} ATK.`],
+        };
+      } else {
+        let bonus = 0;
+        let targetName = "";
+        const newUnits = p.units.map((u) => {
+          if (u.instanceId !== targetId) return u;
+          bonus = u.maxHealth - u.currentHealth;
+          targetName = u.name;
+          return { ...u, currentAttack: u.currentAttack + bonus };
+        });
+        newPlayers[playerIdx] = { ...p, units: newUnits };
+        s = {
+          ...s,
+          players: newPlayers,
+          log: targetName
+            ? [...s.log, `${targetName} recebe +${bonus} ATK.`]
+            : s.log,
+        };
       }
     }
 
@@ -1522,18 +1581,22 @@ export function healAllUnits(
   playerIdx: PlayerIndex,
 ): GameState {
   const p = state.players[playerIdx];
+  const newHero = {
+    ...p.hero,
+    currentHealth: Math.min(p.hero.maxHealth, p.hero.currentHealth + amount),
+  };
   const newUnits = p.units.map((u) => ({
     ...u,
     currentHealth: Math.min(u.maxHealth, u.currentHealth + amount),
   }));
   const newPlayers = [...state.players] as [PlayerState, PlayerState];
-  newPlayers[playerIdx] = { ...p, units: newUnits };
+  newPlayers[playerIdx] = { ...p, hero: newHero, units: newUnits };
   return {
     ...state,
     players: newPlayers,
     log: [
       ...state.log,
-      `Feitiço em área: ${amount} de cura a todas as unidades aliadas.`,
+      `Feitiço em área: ${amount} de cura a todos os aliados.`,
     ],
   };
 }
