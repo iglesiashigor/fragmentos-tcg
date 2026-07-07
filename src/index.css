@@ -80,6 +80,22 @@ body {
   border-top: 1px solid rgba(255,255,255,0.1);
 }
 
+/* Responsive card sizing for different monitor sizes */
+.card-size-sm {
+  width: clamp(4.5rem, min(6.2vw, 11.5vh), 6rem);
+  height: clamp(6.75rem, min(9.3vw, 17.25vh), 9rem);
+}
+
+.card-size-md {
+  width: clamp(6.5rem, min(8.2vw, 14vh), 8rem);
+  height: clamp(9rem, min(11.6vw, 19.25vh), 11rem);
+}
+
+.card-size-lg {
+  width: clamp(7.25rem, min(9vw, 15.75vh), 9rem);
+  height: clamp(10.5rem, min(13vw, 22.75vh), 13rem);
+}
+
 /* Hero card special styling */
 .hero-card {
   box-shadow:

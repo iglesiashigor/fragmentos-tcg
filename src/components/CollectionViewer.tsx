@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { CardDefinition } from '../types/game';
-import { ALL_CARDS, HEROES } from '../data/cards';
+import { ALL_CARDS } from '../data/cards';
 import CardDisplay from './CardDisplay';
 import CardInspector from './CardInspector';
 import { ArrowLeft, Star, Search } from 'lucide-react';
@@ -20,12 +20,9 @@ const TYPE_OPTIONS = [
   { label: 'Neutras', value: 'neutral' },
 ];
 
-const HERO_OPTIONS = [{ label: 'Todos', value: '' }, ...HEROES.map(h => ({ label: h.name, value: h.id }))];
-
 export default function CollectionViewer({ onBack }: CollectionViewerProps) {
   const [inspectedCard, setInspectedCard] = useState<CardDefinition | null>(null);
   const [typeFilter, setTypeFilter] = useState('');
-  const [heroFilter, setHeroFilter] = useState('');
   const [search, setSearch] = useState('');
 
   const cards = useMemo(() => {
@@ -46,7 +43,7 @@ export default function CollectionViewer({ onBack }: CollectionViewerProps) {
     }
 
     return result;
-  }, [typeFilter, heroFilter, search]);
+  }, [typeFilter, search]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">

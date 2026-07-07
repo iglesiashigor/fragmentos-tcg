@@ -62,22 +62,22 @@ export default function CardInspector({ card, onClose }: CardInspectorProps) {
   const maxHealth = bc ? bc.maxHealth : (card as CardDefinition).health;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
-        className="bg-gray-900 border border-gray-700 rounded-xl w-80 max-h-[90vh] overflow-y-auto shadow-2xl"
+        className="bg-slate-950 border border-slate-700 rounded-2xl w-96 max-w-full max-h-[90vh] overflow-y-auto shadow-2xl shadow-black/40"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between p-4 border-b border-gray-700">
+        <div className="flex items-start justify-between p-4 border-b border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950">
           <div>
             <h2 className="text-white font-bold text-lg leading-tight">{card.name}</h2>
             <div className="flex gap-2 mt-1">
-              <span className="text-xs text-gray-400">{TYPE_LABELS[card.type]}</span>
+              <span className="text-xs text-slate-400">{TYPE_LABELS[card.type]}</span>
               {bc?.tier && <span className="text-xs text-amber-400">{bc.tier === 'weak' ? 'Fraca' : bc.tier === 'medium' ? 'Média' : 'Forte'}</span>}
               {(card as CardDefinition).tier && !bc && <span className="text-xs text-amber-400">{(card as CardDefinition).tier === 'weak' ? 'Fraca' : (card as CardDefinition).tier === 'medium' ? 'Média' : 'Forte'}</span>}
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -89,7 +89,7 @@ export default function CardInspector({ card, onClose }: CardInspectorProps) {
               <div className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center">
                 <span className="text-white text-xs font-bold">{card.manaCost}</span>
               </div>
-              <span className="text-gray-400 text-xs">Mana</span>
+              <span className="text-slate-400 text-xs">Mana</span>
             </div>
             {bc?.exhausted && <span className="text-yellow-400 text-xs">Exausto</span>}
             {bc?.summonedThisTurn && <span className="text-orange-400 text-xs">Invocado agora</span>}
@@ -99,24 +99,24 @@ export default function CardInspector({ card, onClose }: CardInspectorProps) {
           {showsCombatStats && (attack !== undefined || defense !== undefined || health !== undefined) && (
             <div className="grid grid-cols-3 gap-2">
               {attack !== undefined && (
-                <div className="bg-red-900/40 rounded-lg p-2 text-center">
+                <div className="bg-red-950/50 border border-red-700/30 rounded-lg p-2 text-center">
                   <Sword className="w-4 h-4 text-red-400 mx-auto mb-1" />
                   <div className="text-white font-bold text-lg">{attack}</div>
-                  <div className="text-gray-400 text-xs">ATK</div>
+                  <div className="text-slate-400 text-xs">ATK</div>
                 </div>
               )}
               {defense !== undefined && (
-                <div className="bg-blue-900/40 rounded-lg p-2 text-center">
+                <div className="bg-blue-950/50 border border-blue-700/30 rounded-lg p-2 text-center">
                   <Shield className="w-4 h-4 text-blue-400 mx-auto mb-1" />
                   <div className="text-white font-bold text-lg">{defense}</div>
-                  <div className="text-gray-400 text-xs">DEF</div>
+                  <div className="text-slate-400 text-xs">DEF</div>
                 </div>
               )}
               {health !== undefined && (
-                <div className="bg-green-900/40 rounded-lg p-2 text-center">
+                <div className="bg-green-950/50 border border-green-700/30 rounded-lg p-2 text-center">
                   <Heart className="w-4 h-4 text-green-400 mx-auto mb-1" />
                   <div className="text-white font-bold text-lg">{health}{maxHealth && health !== maxHealth ? `/${maxHealth}` : ''}</div>
-                  <div className="text-gray-400 text-xs">VID</div>
+                  <div className="text-slate-400 text-xs">VID</div>
                 </div>
               )}
             </div>
@@ -129,10 +129,10 @@ export default function CardInspector({ card, onClose }: CardInspectorProps) {
           {/* Effects */}
           {card.effects.length > 0 && (
             <div>
-              <h3 className="text-gray-400 text-xs uppercase tracking-wide mb-2">Efeitos</h3>
+              <h3 className="text-slate-400 text-xs uppercase tracking-wide mb-2">Efeitos</h3>
               <div className="space-y-1">
                 {card.effects.map((eff, i) => (
-                  <div key={i} className="bg-gray-800 rounded p-2 text-xs text-gray-300 leading-relaxed">
+                  <div key={i} className="bg-slate-900/80 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-300 leading-relaxed">
                     {formatEffect(eff)}
                   </div>
                 ))}

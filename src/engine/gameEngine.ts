@@ -716,14 +716,6 @@ export function playUnit(
   const unit = createBattleCard(cardDef);
   unit.summonedThisTurn = true;
 
-  const newHand = player.hand.filter((_, i) => {
-    if (player.hand.indexOf(cardDef) === i) {
-      player.hand.splice(i, 1);
-      return false;
-    }
-    return true;
-  });
-  // Re-filter properly
   let removed = false;
   const filteredHand = player.hand.filter((c) => {
     if (!removed && c.id === cardDef.id) {
@@ -1809,6 +1801,17 @@ export function resolveAttack(
   }
 
   if (attackers.length === 0) return state;
+  if (
+    attackers.some(
+      (attacker) =>
+        !canAttackTarget(state, attackerPlayerIdx, attacker, targetId),
+    )
+  ) {
+    return {
+      ...state,
+      log: [...state.log, "Ataque invalido: ha uma unidade protegendo o heroi."],
+    };
+  }
 
   // Calculate total damage
   let totalDamage = 0;
@@ -1966,13 +1969,13 @@ export function canAttackTarget(
 ): boolean {
   const defenderPlayerIdx = (1 - attackerPlayerIdx) as PlayerIndex;
   const defender = state.players[defenderPlayerIdx];
-  const hasReadyUnits = defender.units.some((u) => !u.exhausted);
+  const hasUnitsInField = defender.units.length > 0;
 
   const targetIsHero = defender.hero.instanceId === targetId;
   const targetIsUnit = defender.units.some((u) => u.instanceId === targetId);
 
   if (targetIsHero) {
-    if (!hasReadyUnits) return true;
+    if (!hasUnitsInField) return true;
     if (hasCondition(attacker, "stealth")) return true;
     return false;
   }
@@ -2174,10 +2177,10 @@ export function getValidAttackTargets(
 ): string[] {
   const defenderPlayerIdx = (1 - attackerPlayerIdx) as PlayerIndex;
   const defender = state.players[defenderPlayerIdx];
-  const hasReadyUnits = defender.units.some((u) => !u.exhausted);
+  const hasUnitsInField = defender.units.length > 0;
   const hasStealth = hasCondition(attacker, "stealth");
 
-  if (!hasReadyUnits || hasStealth) {
+  if (!hasUnitsInField || hasStealth) {
     return [
       defender.hero.instanceId,
       ...defender.units.map((u) => u.instanceId),

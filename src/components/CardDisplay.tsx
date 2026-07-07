@@ -100,8 +100,8 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
 
   const colorClass = TYPE_COLORS[type] || TYPE_COLORS.unit;
   const artGradient = TYPE_ART_COLORS[type] || TYPE_ART_COLORS.unit;
-  const selected = isSelected ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-gray-950 scale-105 shadow-xl shadow-amber-400/40' : '';
-  const validTarget = isValidTarget ? 'ring-2 ring-green-400 ring-offset-2 ring-offset-gray-950 cursor-pointer animate-pulse shadow-lg shadow-green-400/30' : '';
+  const selected = isSelected ? 'ring-2 ring-amber-300 ring-offset-2 ring-offset-slate-950 scale-105 shadow-xl shadow-amber-300/40 brightness-110' : '';
+  const validTarget = isValidTarget ? 'ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-950 cursor-pointer shadow-lg shadow-emerald-300/30 brightness-110' : '';
   const clickable = onClick ? 'cursor-pointer hover:scale-[1.03] card-glow' : '';
   const tierClass = tier === 'weak' ? 'tier-weak' : tier === 'medium' ? 'tier-medium' : tier === 'strong' ? 'tier-strong' : '';
   const heroClass = type === 'hero' ? 'hero-card' : '';
@@ -110,20 +110,21 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
   const showImage = !!imageSrc && !failedImages[imageSrc];
 
   const sizeClasses = {
-    sm: 'w-24 h-36 text-xs',
-    md: 'w-32 h-44 text-sm',
-    lg: 'w-36 h-52 text-sm',
+    sm: 'card-size-sm text-xs',
+    md: 'card-size-md text-sm',
+    lg: 'card-size-lg text-sm',
   };
 
   if (showBack) {
     return (
       <div
-        className={`${sizeClasses[size]} rounded-lg bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 border-2 border-slate-600 flex items-center justify-center ${clickable} transition-all relative overflow-hidden`}
+        className={`${sizeClasses[size]} rounded-lg bg-gradient-to-br from-slate-700 via-slate-800 to-slate-950 border-2 border-slate-600/80 flex items-center justify-center ${clickable} transition-all relative overflow-hidden shadow-lg shadow-black/30`}
         onClick={onClick}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-600/30 to-transparent" />
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center border border-slate-400/50 shadow-lg">
-          <Star className="w-5 h-5 text-amber-400/70" />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-500/20 via-transparent to-black/30" />
+        <div className="absolute inset-2 rounded-md border border-white/5" />
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-500 to-slate-800 flex items-center justify-center border border-slate-300/30 shadow-lg">
+          <Star className="w-5 h-5 text-amber-300/80" />
         </div>
       </div>
     );
@@ -131,7 +132,7 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
 
   return (
     <div
-      className={`${sizeClasses[size]} rounded-lg bg-gradient-to-br ${colorClass} border-2 flex flex-col overflow-hidden transition-all duration-200 ${selected} ${validTarget} ${clickable} ${exhausted ? 'opacity-50 grayscale-[30%]' : ''} ${tierClass} ${heroClass} relative select-none card-shimmer`}
+      className={`${sizeClasses[size]} rounded-lg bg-gradient-to-br ${colorClass} border-2 flex flex-col overflow-hidden transition-all duration-200 shadow-lg shadow-black/30 ${selected} ${validTarget} ${clickable} ${exhausted ? 'opacity-55 grayscale-[35%]' : ''} ${tierClass} ${heroClass} relative select-none card-shimmer`}
       onClick={onClick}
       title={card.name}
     >
@@ -221,16 +222,16 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
 
       {/* Conditions - now with icons */}
       {conditions.length > 0 && (
-        <div className="absolute bottom-7 left-0 right-0 flex flex-wrap gap-0.5 px-0.5 justify-center">
+        <div className="absolute top-8 left-1 z-20 flex flex-col gap-0.5 pointer-events-none">
           {conditions.slice(0, 4).map((c, i) => {
             const config = CONDITION_CONFIG[c.name];
             return (
               <div
                 key={`${c.name}-${i}`}
-                className={`w-4 h-4 rounded-sm ${config.color} border flex items-center justify-center shadow-md`}
+                className={`w-3.5 h-3.5 rounded-sm ${config.color} border flex items-center justify-center shadow-md`}
                 title={c.name}
               >
-                <span className="text-white/90 scale-75">{config.icon}</span>
+                <span className="text-white/90 scale-[0.65]">{config.icon}</span>
               </div>
             );
           })}
@@ -259,6 +260,12 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
       {/* Summoned this turn indicator */}
       {bc?.summonedThisTurn && (
         <div className="absolute inset-0 border-2 border-yellow-400/60 rounded-lg pointer-events-none animate-pulse" />
+      )}
+
+      {isSelected && (
+        <div className="absolute inset-x-1 top-8 z-20 rounded bg-amber-300/95 text-center text-[9px] font-black uppercase tracking-wide text-amber-950 shadow-md pointer-events-none">
+          Selecionado
+        </div>
       )}
 
       {/* Exhausted overlay */}

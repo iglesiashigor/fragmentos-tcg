@@ -3,9 +3,10 @@ import { supabase } from '../lib/supabase';
 import { GameState, PlayerIndex, DeckDefinition } from '../types/game';
 import { createInitialState, buildDeck, endTurn } from '../engine/gameEngine';
 import { useAuth } from '../lib/authContext';
-import { ArrowLeft, Radio, Loader2, Trophy, Home } from 'lucide-react';
+import { ArrowLeft, Radio, Loader2, Trophy, Home, Star } from 'lucide-react';
 import GameBoard from './GameBoard';
 import { getSavedDecks } from '../data/defaultDecks';
+import { savePlayerMatchResult, MatchResult } from '../lib/ranking';
 
 interface PvPGameBoardProps {
   roomId: string;
@@ -64,9 +65,10 @@ async function fetchDeck(deckId: string): Promise<DeckDefinition | null> {
 }
 
 export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [playerNumber, setPlayerNumber] = useState<number | null>(null);
+  const [playerIds, setPlayerIds] = useState<[string, string] | null>(null);
   const [opponentConnected, setOpponentConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +76,7 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
   const [playerNames, setPlayerNames] = useState<[string, string]>(['Jogador 1', 'Jogador 2']);
   const [secondsRemaining, setSecondsRemaining] = useState(60);
   const processingTimeoutRef = useRef<string | null>(null);
+  const savedMatchRef = useRef<string | null>(null);
   const latestGameStateRef = useRef<GameState | null>(null);
   const playerNamesRef = useRef<[string, string]>(['Jogador 1', 'Jogador 2']);
 
@@ -175,6 +178,9 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
       }
 
       setPlayerNumber(myNumber);
+      if (room.player1_id && room.player2_id) {
+        setPlayerIds([room.player1_id, room.player2_id]);
+      }
       setOpponentConnected(!!room.player1_id && !!room.player2_id);
       await loadPlayerNames(room);
 
@@ -219,7 +225,7 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
         )
         .subscribe();
 
-      pollInterval = setInterval(fetchRoom, 1500);
+      pollInterval = setInterval(fetchRoom, 15000);
     };
 
     init();
@@ -234,6 +240,36 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
   const handleGameEnd = useCallback((result: PlayerIndex | 'draw') => {
     setWinner(result);
   }, []);
+
+  useEffect(() => {
+    if (!user || !gameState?.gameOver || gameState.winner === null || playerNumber === null || !playerIds) return;
+    const matchUid = `pvp-${roomId}`;
+    if (savedMatchRef.current === matchUid) return;
+    savedMatchRef.current = matchUid;
+
+    const result: MatchResult = gameState.winner === 'draw'
+      ? 'draw'
+      : gameState.winner === playerNumber
+      ? 'win'
+      : 'loss';
+    const opponentIndex = (1 - playerNumber) as PlayerIndex;
+    const finishReason = gameState.log.some(line => line.toLowerCase().includes('inatividade'))
+      ? 'inactivity'
+      : 'normal';
+
+    void savePlayerMatchResult({
+      matchUid,
+      playerId: user.id,
+      opponentId: playerIds[opponentIndex],
+      opponentName: playerNames[opponentIndex],
+      mode: 'pvp',
+      result,
+      finishReason,
+      heroId: gameState.players[playerNumber].hero.cardId,
+      opponentHeroId: gameState.players[opponentIndex].hero.cardId,
+      turns: gameState.turnNumber,
+    }).then(() => refreshProfile());
+  }, [gameState, playerIds, playerNames, playerNumber, refreshProfile, roomId, user]);
 
   const handleStateChange = useCallback(async (newState: GameState) => {
     if (!roomId) return;
@@ -376,19 +412,71 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
 
   if (winner !== null) {
     const won = winner !== 'draw' && winner === playerNumber;
+    const resultTheme = winner === 'draw'
+      ? {
+          title: 'Empate!',
+          subtitle: 'A partida terminou sem vencedor.',
+          detail: 'Os dois jogadores chegaram ao fim juntos.',
+          glow: 'from-slate-500/20 via-gray-500/10 to-slate-950',
+          border: 'border-slate-500/40',
+          badge: 'bg-slate-700/80 border-slate-500/50',
+          titleColor: 'text-slate-200',
+        }
+      : won
+      ? {
+          title: 'Vitoria!',
+          subtitle: `Voce venceu ${playerNames[1 - playerNumber]}.`,
+          detail: 'A partida online foi concluida com sucesso.',
+          glow: 'from-emerald-500/25 via-amber-500/10 to-slate-950',
+          border: 'border-emerald-400/50',
+          badge: 'bg-emerald-500/20 border-emerald-300/60',
+          titleColor: 'text-emerald-300',
+        }
+      : {
+          title: 'Derrota!',
+          subtitle: `${playerNames[winner]} venceu a partida.`,
+          detail: 'Volte ao menu para preparar a proxima batalha.',
+          glow: 'from-rose-600/25 via-red-500/10 to-slate-950',
+          border: 'border-rose-500/50',
+          badge: 'bg-rose-500/20 border-rose-400/60',
+          titleColor: 'text-rose-300',
+        };
 
     return (
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-4">
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 max-w-md w-full text-center">
-          <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${won ? 'bg-green-500/20 border border-green-500/40' : 'bg-red-500/20 border border-red-500/40'}`}>
-            <Trophy className="w-10 h-10 text-amber-400" />
-          </div>
-          <h2 className="text-3xl font-bold text-white mb-2">
-            {winner === 'draw' ? 'Empate!' : won ? 'Vitoria!' : 'Derrota!'}
-          </h2>
-          <div className="flex gap-3 justify-center">
-            <button onClick={onBack} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm text-white flex items-center gap-2">
-              <Home className="w-4 h-4" />Menu
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
+        <div className={`relative overflow-hidden bg-slate-950 border ${resultTheme.border} rounded-2xl max-w-lg w-full text-center shadow-2xl`}>
+          <div className={`absolute inset-0 bg-gradient-to-br ${resultTheme.glow}`} />
+          <div className="absolute -top-16 left-1/2 h-32 w-64 -translate-x-1/2 rounded-full bg-white/10 blur-3xl" />
+
+          <div className="relative px-7 py-8 sm:px-9">
+            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 border ${resultTheme.badge} shadow-lg`}>
+              <Trophy className={`w-10 h-10 ${winner === 'draw' ? 'text-slate-200' : won ? 'text-emerald-200' : 'text-rose-200'}`} />
+            </div>
+
+            <div className="flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400 mb-3">
+              <Star className="w-3.5 h-3.5" />
+              PvP finalizado
+              <Star className="w-3.5 h-3.5" />
+            </div>
+
+            <h2 className={`text-4xl sm:text-5xl font-black mb-3 ${resultTheme.titleColor}`}>
+              {resultTheme.title}
+            </h2>
+
+            <p className="text-slate-200 text-base leading-relaxed max-w-sm mx-auto">
+              {resultTheme.subtitle}
+            </p>
+
+            <div className="mt-6 rounded-xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-slate-300">
+              {resultTheme.detail}
+            </div>
+
+            <button
+              onClick={onBack}
+              className="mt-7 w-full sm:w-auto px-6 py-3.5 bg-slate-800 hover:bg-slate-700 border border-white/10 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-colors mx-auto"
+            >
+              <Home className="w-4 h-4" />
+              Voltar ao menu
             </button>
           </div>
         </div>

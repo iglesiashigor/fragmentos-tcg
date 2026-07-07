@@ -90,6 +90,11 @@ function aiMainPhase(state: GameState): GameState {
     const spell = player.hand.find(c => c.type === 'spell' && c.manaCost <= mana);
     if (spell) {
       const target = getAISpellTarget(s, spell);
+      const needsTarget = spell.effects.some(e =>
+        ['damage', 'heal', 'applyCondition', 'attackAgain', 'bonusAttackPerDamageTaken', 'removeCondition', 'attackBonus'].includes(e.type) &&
+        (e.target === 'anyUnit' || e.target === 'ally' || e.target === 'enemy')
+      );
+      if (needsTarget && !target) return s;
       s = playSpell(s, AI_PLAYER, spell, target);
       s = resolveAIPendingEffects(s);
       changed = true;
@@ -144,8 +149,8 @@ function getAISpellTarget(state: GameState, spell: CardDefinition): string | und
       return opponent.hero.instanceId;
     }
     if (eff.type === 'attackAgain') {
-      const ready = player.units.find(u => !u.exhausted);
-      if (ready) return ready.instanceId;
+      const exhausted = [player.hero, ...player.units].find(u => u.exhausted);
+      if (exhausted) return exhausted.instanceId;
       return undefined;
     }
   }

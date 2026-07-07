@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { DeckDefinition } from '../types/game';
 import { useAuth } from '../lib/authContext';
@@ -39,6 +39,7 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
   const [error, setError] = useState('');
   const [inQueue, setInQueue] = useState(false);
   const [queueId, setQueueId] = useState<string | null>(null);
+  const queueIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { signOut } = useAuth();
   const { decks: dbDecks } = useDecks();
   const allDecks = user ? dbDecks : decks;
@@ -63,9 +64,13 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
 
   useEffect(() => {
     fetchRooms();
-    const interval = setInterval(fetchRooms, 3000);
+    const interval = setInterval(fetchRooms, 10000);
     return () => clearInterval(interval);
   }, [fetchRooms]);
+
+  useEffect(() => () => {
+    if (queueIntervalRef.current) clearInterval(queueIntervalRef.current);
+  }, []);
 
   useEffect(() => {
     if (!myRoom) return;
@@ -83,7 +88,7 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
         }
       }
     };
-    const interval = setInterval(checkRoom, 1500);
+    const interval = setInterval(checkRoom, 15000);
     const sub = supabase
       .channel(`room-${myRoom}`)
       .on(
@@ -181,8 +186,8 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
       setInQueue(false);
     } else if (data) {
       setQueueId(data.id);
-      // Check for match every 2s
-      const interval = setInterval(async () => {
+      if (queueIntervalRef.current) clearInterval(queueIntervalRef.current);
+      queueIntervalRef.current = setInterval(async () => {
         const { data: match } = await supabase
           .from('matchmaking_queue')
           .select('*')
@@ -190,11 +195,12 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
           .eq('status', 'matched')
           .maybeSingle();
         if (match) {
-          clearInterval(interval);
+          if (queueIntervalRef.current) clearInterval(queueIntervalRef.current);
+          queueIntervalRef.current = null;
           setInQueue(false);
           // Would navigate to PvP game board
         }
-      }, 2000);
+      }, 5000);
       // Also try to find a waiting opponent
       const { data: opponent } = await supabase
         .from('matchmaking_queue')
@@ -220,7 +226,8 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
         if (room) {
           await supabase.from('matchmaking_queue').update({ status: 'matched' }).eq('id', opponent.id);
           await supabase.from('matchmaking_queue').update({ status: 'matched' }).eq('id', data.id);
-          clearInterval(interval);
+          if (queueIntervalRef.current) clearInterval(queueIntervalRef.current);
+          queueIntervalRef.current = null;
           setInQueue(false);
           setMyRoom(room.id);
         }
@@ -231,6 +238,8 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
   const cancelQueue = async () => {
     if (!queueId) return;
     await supabase.from('matchmaking_queue').delete().eq('id', queueId);
+    if (queueIntervalRef.current) clearInterval(queueIntervalRef.current);
+    queueIntervalRef.current = null;
     setInQueue(false);
     setQueueId(null);
   };

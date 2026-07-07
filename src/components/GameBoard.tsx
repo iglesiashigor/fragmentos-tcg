@@ -21,7 +21,7 @@ import {
 
 interface GameBoardProps {
   initialState: GameState;
-  onGameEnd: (winner: PlayerIndex | 'draw') => void;
+  onGameEnd: (winner: PlayerIndex | 'draw', finalState?: GameState) => void;
   isPvP?: boolean;
   onStateChange?: (state: GameState) => void;
   myPlayerIndex?: PlayerIndex;
@@ -76,6 +76,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const [gameMessage, setGameMessage] = useState('');
   const [viewingDiscard, setViewingDiscard] = useState<PlayerIndex | null>(null);
   const [recoverConfirm, setRecoverConfirm] = useState<RecoverConfirmState | null>(null);
+  const [surrenderConfirm, setSurrenderConfirm] = useState(false);
   const skipSyncVersion = useRef<number | null>(null);
   const syncedStateVersion = useRef<number | null>(null);
 
@@ -138,7 +139,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
 
   useEffect(() => {
     if (gameState.gameOver && gameState.winner !== null) {
-      setTimeout(() => onGameEnd(gameState.winner!), 500);
+      setTimeout(() => onGameEnd(gameState.winner!, gameState), 500);
     }
   }, [gameState.gameOver]);
 
@@ -601,6 +602,8 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       }
       return;
     }
+
+    setInspectedCard(card);
   };
 
   const handleHeroClick = (owner: PlayerIndex) => {
@@ -731,6 +734,24 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const viewedDiscardName = viewingDiscard !== null
     ? (viewingDiscard === myIdx ? myLabel : oppLabel)
     : '';
+  const currentInstruction = !isPlayerTurn
+    ? (isPvP ? `Aguardando jogada de ${oppLabel}` : 'Aguardando a IA jogar')
+    : selectionMode === 'selectAttacker'
+    ? 'Escolha quem vai atacar'
+    : selectionMode === 'selectAttackTarget'
+    ? 'Escolha um alvo destacado'
+    : selectionMode === 'selectSpellTarget'
+    ? 'Escolha o alvo do efeito'
+    : selectionMode === 'selectEquipTarget'
+    ? 'Escolha quem vai receber o equipamento'
+    : selectionMode === 'selectMountTarget'
+    ? 'Escolha quem vai receber a montaria'
+    : selectionMode === 'selectAllyForEffect'
+    ? 'Escolha um aliado para o efeito'
+    : isAttackPhase
+    ? 'Fase de ataque'
+    : 'Jogue cartas, prepare o campo ou ataque';
+  const actionPanelClass = 'bg-slate-950/70 border border-slate-700/70 rounded-xl px-3 py-2 shadow-xl shadow-black/20';
 
   return (
     <div className="h-screen text-white flex flex-col relative overflow-hidden"
@@ -773,6 +794,41 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                   className="px-4 py-2 bg-gradient-to-r from-amber-700 to-amber-600 hover:from-amber-600 hover:to-amber-500 text-white text-sm rounded-lg font-bold transition-all"
                 >
                   Usar mesmo assim
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {surrenderConfirm && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 rounded-xl border border-rose-700/60 max-w-md w-full shadow-2xl">
+            <div className="p-4 border-b border-slate-700 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-rose-500/15 border border-rose-500/40 flex items-center justify-center shrink-0">
+                <Flag className="w-5 h-5 text-rose-300" />
+              </div>
+              <h2 className="text-white font-bold text-lg">Desistir da partida</h2>
+            </div>
+            <div className="p-4 space-y-4">
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Deseja realmente desistir da partida?
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setSurrenderConfirm(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm rounded-lg font-semibold transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    setSurrenderConfirm(false);
+                    onGameEnd(oppIdx);
+                  }}
+                  className="px-4 py-2 bg-rose-700 hover:bg-rose-600 text-white text-sm rounded-lg font-bold transition-colors"
+                >
+                  Desistir
                 </button>
               </div>
             </div>
@@ -835,7 +891,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       {inspectedCard && <CardInspector card={inspectedCard} onClose={() => setInspectedCard(null)} />}
 
       {/* Top status bar */}
-      <div className="relative z-10 flex items-center justify-between px-4 py-2 bg-slate-950/60 backdrop-blur-sm border-b border-slate-800/50">
+      <div className="relative z-10 flex items-center justify-between gap-3 px-4 py-2 bg-slate-950/75 backdrop-blur-md border-b border-slate-700/60 shadow-lg shadow-black/20">
         <div className="flex items-center gap-3">
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center shadow-md">
             <Star className="w-4 h-4 text-white" />
@@ -848,6 +904,11 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
           }`}>
             {isAttackPhase ? 'ATAQUE' : 'PRINCIPAL'}
           </span>
+        </div>
+        <div className="hidden lg:flex items-center justify-center min-w-0 flex-1">
+          <div className="px-3 py-1 rounded-full bg-slate-900/70 border border-slate-700/60 text-slate-300 text-xs font-semibold truncate max-w-[34rem]">
+            {gameMessage || currentInstruction}
+          </div>
         </div>
         <div className={`flex items-center gap-2 px-3 py-1 rounded-full font-semibold text-xs transition-all ${
           isPlayerTurn
@@ -873,7 +934,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
           </div>
         )}
         <button
-          onClick={() => { if (confirm('Deseja realmente desistir da partida?')) onGameEnd(oppIdx); }}
+          onClick={() => setSurrenderConfirm(true)}
           className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-rose-950/50 text-rose-300 border border-rose-700/40 hover:bg-rose-900/50 transition-colors"
         >
           <Flag className="w-3.5 h-3.5" /> Desistir
@@ -881,38 +942,38 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       </div>
 
       {/* Main board area */}
-      <div className="relative z-10 flex-1 flex gap-3 p-3 min-h-0">
+      <div className="relative z-10 flex-1 flex gap-2 xl:gap-3 p-2 xl:p-3 min-h-0">
 
         {/* Left sidebar: Log + info */}
-        <div className="w-52 flex flex-col gap-2 shrink-0 h-full min-h-0">
+        <div className="w-[clamp(11rem,13vw,13rem)] flex flex-col gap-2 shrink-0 h-full min-h-0">
           <GameLog log={gameState.log} />
-          <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-2.5 space-y-1.5">
+          <div className={`${actionPanelClass} space-y-2`}>
             <div className="flex items-center gap-1.5 text-xs">
               <Layers className="w-3 h-3 text-slate-500" />
               <span className="text-slate-500">Baralhos</span>
             </div>
-            <div className="text-xs text-slate-400 flex justify-between">
-              <span>{oppLabel}: <b className="text-slate-200">{ai.deck.length}</b></span>
-              <span>{myLabel}: <b className="text-slate-200">{player.deck.length}</b></span>
+            <div className="text-xs text-slate-400 grid grid-cols-2 gap-2">
+              <span className="rounded-lg bg-slate-900/80 px-2 py-1">{oppLabel}: <b className="text-slate-100">{ai.deck.length}</b></span>
+              <span className="rounded-lg bg-slate-900/80 px-2 py-1 text-right">{myLabel}: <b className="text-slate-100">{player.deck.length}</b></span>
             </div>
             <div className="flex items-center gap-1.5 text-xs pt-1 border-t border-slate-800">
               <Trash2 className="w-3 h-3 text-slate-500" />
               <span className="text-slate-500">Descartes</span>
             </div>
-            <div className="text-xs text-slate-400 flex justify-between gap-2">
+            <div className="text-xs text-slate-400 grid grid-cols-2 gap-2">
               <button
                 onClick={() => setViewingDiscard(oppIdx)}
-                className="text-left hover:text-slate-200 transition-colors disabled:opacity-50"
+                className="text-left rounded-lg bg-slate-900/80 px-2 py-1 hover:text-slate-200 hover:bg-slate-800 transition-colors disabled:opacity-50"
                 disabled={ai.discard.length === 0}
               >
-                {oppLabel}: <b className="text-slate-200">{ai.discard.length}</b>
+                {oppLabel}: <b className="text-slate-100">{ai.discard.length}</b>
               </button>
               <button
                 onClick={() => setViewingDiscard(myIdx)}
-                className="text-right hover:text-slate-200 transition-colors disabled:opacity-50"
+                className="text-right rounded-lg bg-slate-900/80 px-2 py-1 hover:text-slate-200 hover:bg-slate-800 transition-colors disabled:opacity-50"
                 disabled={player.discard.length === 0}
               >
-                {myLabel}: <b className="text-slate-200">{player.discard.length}</b>
+                {myLabel}: <b className="text-slate-100">{player.discard.length}</b>
               </button>
             </div>
           </div>
@@ -922,7 +983,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
         <div className="flex-1 flex flex-col gap-2 min-w-0">
 
           {/* Opponent zone */}
-          <div className="flex-1 rounded-2xl border border-rose-900/20 bg-gradient-to-b from-rose-950/15 via-slate-900/30 to-slate-900/10 p-3 flex flex-col gap-2 min-h-0">
+          <div className="flex-1 rounded-2xl border border-rose-700/25 bg-gradient-to-b from-rose-950/20 via-slate-900/40 to-slate-950/20 p-3 flex flex-col gap-2 min-h-0 shadow-inner shadow-black/20">
             {/* Opponent header */}
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-rose-950/60 border border-rose-700/40 flex items-center justify-center">
@@ -961,8 +1022,8 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                 {ai.terrain ? (
                   <CardDisplay card={ai.terrain} isBattleCard size="sm" onClick={() => setInspectedCard(ai.terrain!)} />
                 ) : (
-                  <div className="w-16 h-24 rounded-lg border border-dashed border-slate-700/50 flex items-center justify-center">
-                    <span className="text-slate-700 text-[10px]">Terreno</span>
+                  <div className="card-size-sm rounded-lg border border-dashed border-emerald-700/35 bg-emerald-950/10 flex items-center justify-center">
+                    <span className="text-emerald-700/70 text-[10px]">Terreno</span>
                   </div>
                 )}
               </div>
@@ -981,7 +1042,9 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                       onClick={() => handleBattleCardClick(unit, oppIdx)}
                     />
                   ) : (
-                    <div key={i} className="w-16 h-24 rounded-lg border border-dashed border-slate-800/40" />
+                    <div key={i} className="card-size-sm rounded-lg border border-dashed border-slate-700/35 bg-slate-950/25 flex items-center justify-center">
+                      <span className="text-slate-700 text-[9px]">Unidade</span>
+                    </div>
                   );
                 })}
               </div>
@@ -1002,20 +1065,18 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
           {/* Center divider with phase indicator */}
           <div className="flex items-center gap-3 py-1">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
-            {gameMessage ? (
-              <div className="px-4 py-1 bg-amber-950/50 border border-amber-700/40 rounded-full text-amber-300 text-xs font-medium">
-                {gameMessage}
-              </div>
-            ) : (
-              <div className="px-3 py-0.5 bg-slate-800/50 border border-slate-700/40 rounded-full text-slate-500 text-[10px] uppercase tracking-widest">
-                Campo de Batalha
-              </div>
-            )}
+            <div className={`px-4 py-1 rounded-full text-xs font-semibold border shadow-lg shadow-black/20 ${
+              gameMessage
+                ? 'bg-amber-950/70 border-amber-600/50 text-amber-200'
+                : 'bg-slate-900/80 border-slate-700/60 text-slate-300'
+            }`}>
+              {gameMessage || currentInstruction}
+            </div>
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
           </div>
 
           {/* Player zone */}
-          <div className="flex-1 rounded-2xl border border-blue-900/20 bg-gradient-to-t from-blue-950/15 via-slate-900/30 to-slate-900/10 p-3 flex flex-col gap-2 min-h-0">
+          <div className="flex-1 rounded-2xl border border-blue-700/25 bg-gradient-to-t from-blue-950/20 via-slate-900/40 to-slate-950/20 p-3 flex flex-col gap-2 min-h-0 shadow-inner shadow-black/20">
             {/* Player battlefield row */}
             <div className="flex-1 flex gap-3 items-center justify-center min-h-0">
               {/* Player hero */}
@@ -1059,7 +1120,9 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                           )}
                         </>
                       ) : (
-                        <div className="w-16 h-24 rounded-lg border border-dashed border-slate-800/40" />
+                        <div className="card-size-sm rounded-lg border border-dashed border-slate-700/35 bg-slate-950/25 flex items-center justify-center">
+                          <span className="text-slate-700 text-[9px]">Unidade</span>
+                        </div>
                       )}
                     </div>
                   );
@@ -1071,8 +1134,8 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                 {player.terrain ? (
                   <CardDisplay card={player.terrain} isBattleCard size="sm" onClick={() => setInspectedCard(player.terrain!)} />
                 ) : (
-                  <div className="w-16 h-24 rounded-lg border border-dashed border-slate-700/50 flex items-center justify-center">
-                    <span className="text-slate-700 text-[10px]">Terreno</span>
+                  <div className="card-size-sm rounded-lg border border-dashed border-emerald-700/35 bg-emerald-950/10 flex items-center justify-center">
+                    <span className="text-emerald-700/70 text-[10px]">Terreno</span>
                   </div>
                 )}
               </div>
@@ -1109,7 +1172,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
 
           {/* Action bar */}
           {isPlayerTurn && !gameState.gameOver && (
-            <div className="flex gap-2 justify-center flex-wrap items-center">
+            <div className="flex gap-2 justify-center flex-wrap items-center bg-slate-950/55 border border-slate-800/70 rounded-xl px-3 py-2 shadow-lg shadow-black/20">
               {selectionMode === 'none' && isMainPhase && (
                 <>
                   <button
@@ -1186,12 +1249,12 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
           )}
 
           {/* Hand */}
-          <div className="bg-slate-950/40 rounded-xl border border-slate-800/50 p-2.5">
-            <div className="flex items-center gap-2 mb-1.5">
+          <div className="bg-slate-950/65 rounded-xl border border-slate-700/70 p-2.5 shadow-xl shadow-black/20">
+            <div className="flex items-center gap-2 mb-2">
               <Hand className="w-3.5 h-3.5 text-slate-500" />
               <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Mão ({player.hand.length})</span>
             </div>
-            <div className="flex gap-2 flex-wrap justify-center">
+            <div className="flex gap-2 flex-wrap justify-center min-h-36">
               {player.hand.map((card, i) => (
                 <div key={i} className="relative">
                   <CardDisplay

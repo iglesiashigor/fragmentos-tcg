@@ -14,8 +14,10 @@ import CoinFlip from './components/CoinFlip';
 import AuthModal from './components/AuthModal';
 import MatchmakingScreen from './components/MatchmakingScreen';
 import PvPGameBoard from './components/PvPGameBoard';
+import PlayerProfile from './components/PlayerProfile';
+import { savePlayerMatchResult } from './lib/ranking';
 
-type Screen = 'menu' | 'deckBuilder' | 'collection' | 'coinFlip' | 'game' | 'gameOver' | 'matchmaking' | 'pvpGame';
+type Screen = 'menu' | 'deckBuilder' | 'collection' | 'coinFlip' | 'game' | 'gameOver' | 'matchmaking' | 'pvpGame' | 'profile';
 
 function AppContent() {
   const [screen, setScreen] = useState<Screen>('menu');
@@ -29,7 +31,7 @@ function AppContent() {
   const [gameMode, setGameMode] = useState<'ai' | 'pvp'>('ai');
   const [roomId, setRoomId] = useState<string | null>(null);
 
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const { decks, loading: decksLoading, saveDbDeck, deleteDbDeck, refreshDecks } = useDecks();
 
   const allDecks = user ? decks : getSavedDecks();
@@ -69,10 +71,24 @@ function AppContent() {
     setScreen('game');
   }, [pendingDecks]);
 
-  const handleGameEnd = useCallback((w: PlayerIndex | 'draw') => {
+  const handleGameEnd = useCallback((w: PlayerIndex | 'draw', finalState?: GameState) => {
+    const stateToSave = finalState ?? gameState;
+    if (user && stateToSave) {
+      const result = w === 'draw' ? 'draw' : w === 0 ? 'win' : 'loss';
+      void savePlayerMatchResult({
+        matchUid: `ai-${user.id}-${Date.now()}`,
+        playerId: user.id,
+        opponentName: 'IA',
+        mode: 'ai',
+        result,
+        heroId: stateToSave.players[0].hero.cardId,
+        opponentHeroId: stateToSave.players[1].hero.cardId,
+        turns: stateToSave.turnNumber,
+      }).then(() => refreshProfile());
+    }
     setWinner(w);
     setScreen('gameOver');
-  }, []);
+  }, [gameState, refreshProfile, user]);
 
   const handlePlayAgain = useCallback(() => {
     if (lastPlayerDeck && lastAIDeck) {
@@ -119,6 +135,7 @@ function AppContent() {
           onStartPvp={handleStartPvp}
           onOpenDeckBuilder={handleOpenDeckBuilder}
           onOpenCollection={() => setScreen('collection')}
+          onOpenProfile={() => setScreen('profile')}
           onShowAuth={() => setShowAuth(true)}
           decks={allDecks}
           decksLoading={decksLoading}
@@ -137,6 +154,12 @@ function AppContent() {
       )}
       {screen === 'collection' && (
         <CollectionViewer onBack={() => setScreen('menu')} />
+      )}
+      {screen === 'profile' && (
+        <PlayerProfile
+          onBack={() => setScreen('menu')}
+          onShowAuth={() => setShowAuth(true)}
+        />
       )}
       {screen === 'matchmaking' && (
         <MatchmakingScreen

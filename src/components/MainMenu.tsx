@@ -5,7 +5,8 @@ import { getCardById } from '../data/cards';
 import { useAuth } from '../lib/authContext';
 import {
   Star, Play, Layers, BookOpen, Trash2, Plus, Sword, Shield, Heart,
-  ChevronRight, LogIn, LogOut, User, Trophy, Zap, Users, Globe
+  ChevronRight, LogIn, LogOut, User, Trophy, Zap, Users, Globe,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface MainMenuProps {
@@ -13,6 +14,7 @@ interface MainMenuProps {
   onStartPvp: () => void;
   onOpenDeckBuilder: (deck?: DeckDefinition) => void;
   onOpenCollection: () => void;
+  onOpenProfile: () => void;
   onShowAuth: () => void;
   decks: DeckDefinition[];
   decksLoading: boolean;
@@ -24,13 +26,18 @@ interface MainMenuProps {
 
 export default function MainMenu({
   onStartGame, onStartPvp, onOpenDeckBuilder, onOpenCollection,
-  onShowAuth, decks, decksLoading, user, profile, onDeleteDeck, onRefreshDecks,
+  onOpenProfile, onShowAuth, decks, decksLoading, user, profile, onDeleteDeck, onRefreshDecks,
 }: MainMenuProps) {
   const { signOut } = useAuth();
   const [selectedPlayerDeck, setSelectedPlayerDeck] = useState<string | null>(decks[0]?.id ?? null);
   const [selectedAIDeck, setSelectedAIDeck] = useState<string | null>(decks[1]?.id ?? decks[0]?.id ?? null);
   const [error, setError] = useState('');
   const [gameMode, setGameMode] = useState<'ai' | 'pvp'>('ai');
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   const handleStartGame = () => {
     if (!selectedPlayerDeck || !selectedAIDeck) {
@@ -44,8 +51,7 @@ export default function MainMenu({
     onStartGame(playerDeck, aiDeck);
   };
 
-  const handleDelete = async (deckId: string) => {
-    if (!confirm('Deletar este baralho?')) return;
+  const performDelete = async (deckId: string) => {
     if (deckId.startsWith('deck-')) {
       deleteDeck(deckId);
       const newDecks = getSavedDecks();
@@ -57,10 +63,53 @@ export default function MainMenu({
     onRefreshDecks();
   };
 
+  const handleDelete = (deckId: string, deckName?: string) => {
+    setConfirmDialog({
+      title: 'Deletar baralho',
+      message: `Deseja realmente deletar ${deckName ? `"${deckName}"` : 'este baralho'}?`,
+      onConfirm: () => {
+        void performDelete(deckId);
+      },
+    });
+  };
+
   const displayDecks = decks.length > 0 ? decks : DEFAULT_DECKS;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+      {confirmDialog && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-red-800/60 rounded-xl max-w-md w-full shadow-2xl">
+            <div className="p-4 border-b border-gray-800 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-red-500/15 border border-red-500/40 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-300" />
+              </div>
+              <h2 className="text-white font-bold text-lg">{confirmDialog.title}</h2>
+            </div>
+            <div className="p-4 space-y-4">
+              <p className="text-gray-300 text-sm">{confirmDialog.message}</p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setConfirmDialog(null)}
+                  className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm rounded-lg font-semibold transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    const action = confirmDialog.onConfirm;
+                    setConfirmDialog(null);
+                    action();
+                  }}
+                  className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white text-sm rounded-lg font-bold transition-colors"
+                >
+                  Deletar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Hero header */}
       <div className="bg-gradient-to-b from-gray-900 to-gray-950 border-b border-gray-800 py-10 text-center relative">
         {/* User badge */}
@@ -266,7 +315,14 @@ export default function MainMenu({
         )}
 
         {/* Secondary actions */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <button
+            onClick={onOpenProfile}
+            className="flex items-center justify-center gap-2 p-3 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-amber-600 rounded-xl text-gray-300 hover:text-amber-300 transition-all text-sm font-medium"
+          >
+            <Trophy className="w-4 h-4" />
+            Perfil
+          </button>
           <button
             onClick={() => { onOpenDeckBuilder(); }}
             className="flex items-center justify-center gap-2 p-3 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-600 rounded-xl text-gray-300 hover:text-white transition-all text-sm font-medium"
@@ -283,9 +339,9 @@ export default function MainMenu({
           </button>
           <button
             onClick={() => {
-              if (displayDecks.length > 0 && confirm('Deletar o último baralho?')) {
+              if (displayDecks.length > 0) {
                 const last = displayDecks[displayDecks.length - 1];
-                handleDelete(last.id);
+                handleDelete(last.id, last.name);
               }
             }}
             className="flex items-center justify-center gap-2 p-3 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-red-700 rounded-xl text-gray-400 hover:text-red-400 transition-all text-sm font-medium"
@@ -310,7 +366,7 @@ export default function MainMenu({
                     Editar
                   </button>
                   <button
-                    onClick={() => handleDelete(deck.id)}
+                    onClick={() => handleDelete(deck.id, deck.name)}
                     className="opacity-0 group-hover:opacity-100 px-2 py-0.5 bg-red-900 hover:bg-red-800 rounded text-red-300 transition-all"
                   >
                     Del
