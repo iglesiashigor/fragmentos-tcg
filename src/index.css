@@ -108,6 +108,60 @@ body {
 .tier-medium { border-bottom: 2px solid #60a5fa; }
 .tier-strong { border-bottom: 2px solid #a78bfa; }
 
+.card-cosmetic-amber {
+  box-shadow:
+    0 0 0 1px rgba(251, 191, 36, 0.65),
+    0 0 18px rgba(251, 191, 36, 0.22),
+    0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.card-cosmetic-sapphire {
+  box-shadow:
+    0 0 0 1px rgba(96, 165, 250, 0.7),
+    0 0 18px rgba(59, 130, 246, 0.26),
+    0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.card-cosmetic-ruby {
+  box-shadow:
+    0 0 0 1px rgba(248, 113, 113, 0.75),
+    0 0 18px rgba(225, 29, 72, 0.26),
+    0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.card-cosmetic-emerald {
+  box-shadow:
+    0 0 0 1px rgba(52, 211, 153, 0.75),
+    0 0 18px rgba(16, 185, 129, 0.26),
+    0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.playmat-default {
+  background:
+    radial-gradient(ellipse at center, #1e293b 0%, #0f172a 50%, #020617 100%);
+}
+
+.playmat-arcane-forest {
+  background:
+    radial-gradient(circle at 16% 25%, rgba(52, 211, 153, 0.18), transparent 34%),
+    radial-gradient(circle at 82% 78%, rgba(20, 184, 166, 0.14), transparent 32%),
+    linear-gradient(145deg, #06150f 0%, #0f1f1a 45%, #020617 100%);
+}
+
+.playmat-crystal-arena {
+  background:
+    radial-gradient(circle at 50% 18%, rgba(125, 211, 252, 0.22), transparent 32%),
+    radial-gradient(circle at 18% 82%, rgba(99, 102, 241, 0.14), transparent 30%),
+    linear-gradient(145deg, #07111f 0%, #0e1b32 48%, #020617 100%);
+}
+
+.playmat-ember-ruins {
+  background:
+    radial-gradient(circle at 25% 75%, rgba(248, 113, 113, 0.18), transparent 32%),
+    radial-gradient(circle at 78% 24%, rgba(251, 191, 36, 0.12), transparent 28%),
+    linear-gradient(145deg, #1a0a0d 0%, #1f1314 48%, #020617 100%);
+}
+
 /* Exhausted unit effect */
 .exhausted-overlay::after {
   content: '';

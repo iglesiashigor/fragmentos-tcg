@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { DeckDefinition, GameState, PlayerIndex } from './types/game';
 import { createInitialState, buildDeck } from './engine/gameEngine';
 import { getCardById } from './data/cards';
@@ -8,7 +8,7 @@ import { useDecks } from './hooks/useDecks';
 import MainMenu from './components/MainMenu';
 import DeckBuilder from './components/DeckBuilder';
 import CollectionViewer from './components/CollectionViewer';
-import GameBoard from './components/GameBoard';
+import GameBoard, { BoardCosmetics } from './components/GameBoard';
 import GameOver from './components/GameOver';
 import CoinFlip from './components/CoinFlip';
 import AuthModal from './components/AuthModal';
@@ -16,7 +16,7 @@ import MatchmakingScreen from './components/MatchmakingScreen';
 import PvPGameBoard from './components/PvPGameBoard';
 import PlayerProfile from './components/PlayerProfile';
 import { savePlayerMatchResult } from './lib/ranking';
-import { saveMatchProgress } from './lib/progression';
+import { fetchPlayerProgress, PlayerProgress, saveMatchProgress } from './lib/progression';
 
 type Screen = 'menu' | 'deckBuilder' | 'collection' | 'coinFlip' | 'game' | 'gameOver' | 'matchmaking' | 'pvpGame' | 'profile';
 
@@ -31,11 +31,39 @@ function AppContent() {
   const [showAuth, setShowAuth] = useState(false);
   const [gameMode, setGameMode] = useState<'ai' | 'pvp'>('ai');
   const [roomId, setRoomId] = useState<string | null>(null);
+  const [boardCosmetics, setBoardCosmetics] = useState<BoardCosmetics>({ cardFrame: 'default', playmat: 'default' });
 
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const { decks, loading: decksLoading, saveDbDeck, deleteDbDeck, refreshDecks } = useDecks();
 
   const allDecks = user ? decks : getSavedDecks();
+
+  useEffect(() => {
+    if (!user) {
+      setBoardCosmetics({ cardFrame: 'default', playmat: 'default' });
+      return;
+    }
+
+    let mounted = true;
+    void fetchPlayerProgress(user.id).then(result => {
+      if (!mounted) return;
+      setBoardCosmetics({
+        cardFrame: result.data?.equipped_card_frame ?? 'default',
+        playmat: result.data?.equipped_playmat ?? 'default',
+      });
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
+
+  const handleProgressChange = useCallback((progress: PlayerProgress) => {
+    setBoardCosmetics({
+      cardFrame: progress.equipped_card_frame ?? 'default',
+      playmat: progress.equipped_playmat ?? 'default',
+    });
+  }, []);
 
   const handleStartGame = useCallback((playerDeck: DeckDefinition, aiDeck: DeckDefinition) => {
     setPendingDecks({ player: playerDeck, ai: aiDeck });
@@ -167,6 +195,7 @@ function AppContent() {
         <PlayerProfile
           onBack={() => setScreen('menu')}
           onShowAuth={() => setShowAuth(true)}
+          onProgressChange={handleProgressChange}
         />
       )}
       {screen === 'matchmaking' && (
@@ -191,6 +220,7 @@ function AppContent() {
             initialState={gameState}
             onGameEnd={handleGameEnd}
             playerNames={[profile?.username ?? 'Você', 'IA']}
+            cosmetics={boardCosmetics}
           />
           {winner !== null && (
             <GameOver
@@ -212,6 +242,7 @@ function AppContent() {
         <PvPGameBoard
           roomId={roomId}
           onBack={() => { setScreen('menu'); setRoomId(null); }}
+          cosmetics={boardCosmetics}
         />
       )}
           <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} />
