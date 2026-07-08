@@ -139,7 +139,7 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
 
   return (
     <div
-      className={`${sizeClasses[size]} rounded-lg bg-gradient-to-br ${colorClass} border-2 flex flex-col overflow-hidden transition-all duration-200 shadow-lg shadow-black/30 ${selected} ${validTarget} ${clickable} ${exhausted ? 'opacity-55 grayscale-[35%]' : ''} ${tierClass} ${heroClass} ${cosmeticClass} relative select-none card-shimmer`}
+      className={`${sizeClasses[size]} rounded-lg bg-gradient-to-br ${colorClass} border-2 flex flex-col overflow-hidden transition-all duration-200 shadow-lg shadow-black/30 ${selected} ${validTarget} ${clickable} ${exhausted ? 'opacity-55 grayscale-[35%]' : ''} ${tierClass} ${heroClass} ${cosmeticClass} relative select-none`}
       onClick={onClick}
       title={card.name}
     >
