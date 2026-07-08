@@ -98,7 +98,6 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
         }
       }
     };
-    const interval = setInterval(checkRoom, 15000);
     const sub = supabase
       .channel(`room-${myRoom}`)
       .on(
@@ -113,10 +112,11 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
         }
       )
       .subscribe();
-    checkRoom();
+    void checkRoom();
+    const interval = setInterval(checkRoom, 3000);
     return () => {
       clearInterval(interval);
-      sub.unsubscribe();
+      void supabase.removeChannel(sub);
     };
   }, [myRoom, onGameStart]);
 

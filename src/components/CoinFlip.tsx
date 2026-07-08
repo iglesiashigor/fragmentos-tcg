@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { PlayerIndex } from '../types/game';
 import { Swords, Shield, Sparkles } from 'lucide-react';
 
@@ -6,31 +6,68 @@ interface CoinFlipProps {
   playerHeroName: string;
   aiHeroName: string;
   onComplete: (firstPlayer: PlayerIndex) => void;
+  playerLabel?: string;
+  opponentLabel?: string;
+  predeterminedResult?: PlayerIndex;
+  autoStart?: boolean;
+  autoContinue?: boolean;
+  spinDuration?: number;
 }
 
-export default function CoinFlip({ playerHeroName, aiHeroName, onComplete }: CoinFlipProps) {
+export default function CoinFlip({
+  playerHeroName,
+  aiHeroName,
+  onComplete,
+  playerLabel = 'Voce',
+  opponentLabel = 'Inimigo',
+  predeterminedResult,
+  autoStart = false,
+  autoContinue = false,
+  spinDuration = 1200,
+}: CoinFlipProps) {
   const [phase, setPhase] = useState<'intro' | 'spinning' | 'result'>('intro');
   const [result, setResult] = useState<PlayerIndex>(0);
   const [progress, setProgress] = useState(0);
+  const spinIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const completeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const startSpin = () => {
+  const startSpin = useCallback(() => {
+    if (phase !== 'intro') return;
     setPhase('spinning');
     let duration = 0;
-    const interval = setInterval(() => {
-      duration += 100;
-      setProgress(Math.min((duration / 2500) * 100, 100));
-      if (duration >= 2500) {
-        clearInterval(interval);
-        const winner = Math.random() < 0.5 ? 0 : 1;
+    spinIntervalRef.current = setInterval(() => {
+      duration += 50;
+      setProgress(Math.min((duration / spinDuration) * 100, 100));
+      if (duration >= spinDuration) {
+        if (spinIntervalRef.current) clearInterval(spinIntervalRef.current);
+        spinIntervalRef.current = null;
+        const winner = predeterminedResult ?? (Math.random() < 0.5 ? 0 : 1);
         setResult(winner);
         setPhase('result');
       }
-    }, 100);
-  };
+    }, 50);
+  }, [phase, predeterminedResult, spinDuration]);
 
   const handleContinue = () => {
     onComplete(result);
   };
+
+  useEffect(() => {
+    if (autoStart) startSpin();
+  }, [autoStart, startSpin]);
+
+  useEffect(() => {
+    if (phase !== 'result' || !autoContinue) return;
+    completeTimeoutRef.current = setTimeout(() => onComplete(result), 550);
+    return () => {
+      if (completeTimeoutRef.current) clearTimeout(completeTimeoutRef.current);
+    };
+  }, [autoContinue, onComplete, phase, result]);
+
+  useEffect(() => () => {
+    if (spinIntervalRef.current) clearInterval(spinIntervalRef.current);
+    if (completeTimeoutRef.current) clearTimeout(completeTimeoutRef.current);
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center game-bg p-4">
@@ -52,7 +89,7 @@ export default function CoinFlip({ playerHeroName, aiHeroName, onComplete }: Coi
                   <Shield className="w-8 h-8 text-white" />
                 </div>
                 <p className="text-xs text-blue-300 font-medium">{playerHeroName}</p>
-                <p className="text-xs text-gray-500">Você</p>
+                <p className="text-xs text-gray-500">{playerLabel}</p>
               </div>
               <div className="text-2xl font-bold text-gray-600">VS</div>
               <div className="text-center">
@@ -60,7 +97,7 @@ export default function CoinFlip({ playerHeroName, aiHeroName, onComplete }: Coi
                   <Swords className="w-8 h-8 text-white" />
                 </div>
                 <p className="text-xs text-red-300 font-medium">{aiHeroName}</p>
-                <p className="text-xs text-gray-500">Inimigo</p>
+                <p className="text-xs text-gray-500">{opponentLabel}</p>
               </div>
             </div>
 
@@ -125,16 +162,20 @@ export default function CoinFlip({ playerHeroName, aiHeroName, onComplete }: Coi
                 </p>
               </div>
               <p className="text-sm text-gray-500">
-                {result === 0 ? 'Você começa com 2 de mana!' : 'O inimigo começa com 2 de mana!'}
+                {result === 0 ? `${playerLabel} começa com 2 de mana!` : `${opponentLabel} começa com 2 de mana!`}
               </p>
             </div>
 
-            <button
-              onClick={handleContinue}
-              className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-lg shadow-lg shadow-green-500/20 hover:shadow-green-500/40 transition-all hover:scale-105 active:scale-95"
-            >
-              Iniciar Partida!
-            </button>
+            {autoContinue ? (
+              <p className="text-sm font-semibold text-emerald-300">Iniciando partida...</p>
+            ) : (
+              <button
+                onClick={handleContinue}
+                className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-lg shadow-lg shadow-green-500/20 hover:shadow-amber-500/40 transition-all hover:scale-105 active:scale-95"
+              >
+                Iniciar Partida!
+              </button>
+            )}
           </div>
         )}
       </div>

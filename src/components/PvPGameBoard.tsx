@@ -5,6 +5,7 @@ import { createInitialState, buildDeck, endTurn } from '../engine/gameEngine';
 import { useAuth } from '../lib/authContext';
 import { ArrowLeft, Radio, Loader2, Trophy, Home, Star } from 'lucide-react';
 import GameBoard, { BoardCosmetics } from './GameBoard';
+import CoinFlip from './CoinFlip';
 import { getSavedDecks } from '../data/defaultDecks';
 import { savePlayerMatchResult, MatchResult } from '../lib/ranking';
 import { saveMatchProgress } from '../lib/progression';
@@ -86,6 +87,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
   const [roomPresence, setRoomPresence] = useState<RoomPresence | null>(null);
   const [savingMove, setSavingMove] = useState(false);
   const [opponentAbsentSeconds, setOpponentAbsentSeconds] = useState<number | null>(null);
+  const [coinFlipComplete, setCoinFlipComplete] = useState(false);
   const disconnectProcessedRef = useRef(false);
   const processingTimeoutRef = useRef<string | null>(null);
   const savedMatchRef = useRef<string | null>(null);
@@ -233,8 +235,6 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
     };
 
     const init = async () => {
-      await fetchRoom();
-
       channel = supabase
         .channel(`room-${roomId}`)
         .on(
@@ -246,7 +246,8 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
         )
         .subscribe();
 
-      pollInterval = setInterval(fetchRoom, 15000);
+      await fetchRoom();
+      pollInterval = setInterval(fetchRoom, 3000);
     };
 
     init();
@@ -254,7 +255,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
     return () => {
       mounted = false;
       if (pollInterval) clearInterval(pollInterval);
-      if (channel) channel.unsubscribe();
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [roomId, user]);
 
@@ -310,7 +311,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
       void (async () => {
         await supabase
           .from('game_rooms')
-          .update({ game_state: nextState, status: 'completed' })
+          .update({ game_state: nextState, status: 'finished' })
           .eq('id', roomId)
           .eq('status', 'active');
 
@@ -365,7 +366,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
 
     void supabase
       .from('game_rooms')
-      .update({ status: 'completed', game_state: gameState })
+      .update({ status: 'finished', game_state: gameState })
       .eq('id', roomId);
   }, [gameState, playerIds, playerNames, playerNumber, refreshProfile, roomId, user]);
 
@@ -390,7 +391,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
 
     const saveState = async () => supabase
       .from('game_rooms')
-      .update({ game_state: stateToSave, status: stateToSave.gameOver ? 'completed' : 'active' })
+      .update({ game_state: stateToSave, status: stateToSave.gameOver ? 'finished' : 'active' })
       .eq('id', roomId)
       .select('id')
       .maybeSingle();
@@ -462,7 +463,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
       void (async () => {
         const { error: updateError } = await supabase
           .from('game_rooms')
-          .update({ game_state: nextState, status: nextState.gameOver ? 'completed' : 'active' })
+          .update({ game_state: nextState, status: nextState.gameOver ? 'finished' : 'active' })
           .eq('id', roomId);
 
         if (updateError) {
@@ -539,6 +540,22 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
       </div>
     </div>
   );
+
+  if (!coinFlipComplete && !gameState.gameOver) {
+    return (
+      <CoinFlip
+        playerHeroName={playerNames[0]}
+        aiHeroName={playerNames[1]}
+        playerLabel="Jogador 1"
+        opponentLabel="Jogador 2"
+        predeterminedResult={gameState.currentPlayer}
+        autoStart
+        autoContinue
+        spinDuration={900}
+        onComplete={() => setCoinFlipComplete(true)}
+      />
+    );
+  }
 
   if (winner !== null) {
     const won = winner !== 'draw' && winner === playerNumber;
