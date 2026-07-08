@@ -12,6 +12,7 @@ interface CardDisplayProps {
   onClick?: () => void;
   size?: 'sm' | 'md' | 'lg';
   showBack?: boolean;
+  cosmeticFrame?: string;
 }
 
 const CONDITION_CONFIG: Record<ConditionName, { color: string; icon: React.ReactNode }> = {
@@ -72,7 +73,7 @@ function isBattle(card: CardDefinition | BattleCard): card is BattleCard {
   return 'instanceId' in card;
 }
 
-export default function CardDisplay({ card, isBattleCard, isSelected, isValidTarget, isExhausted, onClick, size = 'md', showBack }: CardDisplayProps) {
+export default function CardDisplay({ card, isBattleCard, isSelected, isValidTarget, isExhausted, onClick, size = 'md', showBack, cosmeticFrame }: CardDisplayProps) {
   const [failedImages, setFailedImages] = React.useState<Record<string, boolean>>({});
   const bc = isBattle(card) ? card : null;
   const def = isBattle(card) ? null : card as CardDefinition;
@@ -114,6 +115,7 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
     md: 'card-size-md text-sm',
     lg: 'card-size-lg text-sm',
   };
+  const cosmeticClass = cosmeticFrame && cosmeticFrame !== 'default' ? `card-cosmetic-${cosmeticFrame}` : '';
 
   if (showBack) {
     return (
@@ -132,7 +134,7 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
 
   return (
     <div
-      className={`${sizeClasses[size]} rounded-lg bg-gradient-to-br ${colorClass} border-2 flex flex-col overflow-hidden transition-all duration-200 shadow-lg shadow-black/30 ${selected} ${validTarget} ${clickable} ${exhausted ? 'opacity-55 grayscale-[35%]' : ''} ${tierClass} ${heroClass} relative select-none card-shimmer`}
+      className={`${sizeClasses[size]} rounded-lg bg-gradient-to-br ${colorClass} border-2 flex flex-col overflow-hidden transition-all duration-200 shadow-lg shadow-black/30 ${selected} ${validTarget} ${clickable} ${exhausted ? 'opacity-55 grayscale-[35%]' : ''} ${tierClass} ${heroClass} ${cosmeticClass} relative select-none card-shimmer`}
       onClick={onClick}
       title={card.name}
     >

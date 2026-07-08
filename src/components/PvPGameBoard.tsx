@@ -4,7 +4,7 @@ import { GameState, PlayerIndex, DeckDefinition } from '../types/game';
 import { createInitialState, buildDeck, endTurn } from '../engine/gameEngine';
 import { useAuth } from '../lib/authContext';
 import { ArrowLeft, Radio, Loader2, Trophy, Home, Star } from 'lucide-react';
-import GameBoard from './GameBoard';
+import GameBoard, { BoardCosmetics } from './GameBoard';
 import { getSavedDecks } from '../data/defaultDecks';
 import { savePlayerMatchResult, MatchResult } from '../lib/ranking';
 import { saveMatchProgress } from '../lib/progression';
@@ -12,6 +12,7 @@ import { saveMatchProgress } from '../lib/progression';
 interface PvPGameBoardProps {
   roomId: string;
   onBack: () => void;
+  cosmetics?: BoardCosmetics;
 }
 
 interface DeckRow {
@@ -71,7 +72,7 @@ async function fetchDeck(deckId: string): Promise<DeckDefinition | null> {
   return rowToDeck(data as DeckRow);
 }
 
-export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
+export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoardProps) {
   const { user, refreshProfile } = useAuth();
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [playerNumber, setPlayerNumber] = useState<number | null>(null);
@@ -631,6 +632,7 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
         opponentAbsentSeconds,
         connected: opponentAbsentSeconds === null || opponentAbsentSeconds < 25,
       }}
+      cosmetics={cosmetics}
     />
   );
 }

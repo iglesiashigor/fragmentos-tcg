@@ -19,6 +19,11 @@ import {
   Flag, Clock, AlertTriangle, X,
 } from 'lucide-react';
 
+export interface BoardCosmetics {
+  cardFrame: string;
+  playmat: string;
+}
+
 interface GameBoardProps {
   initialState: GameState;
   onGameEnd: (winner: PlayerIndex | 'draw', finalState?: GameState) => void;
@@ -35,6 +40,7 @@ interface GameBoardProps {
     opponentAbsentSeconds: number | null;
     connected: boolean;
   };
+  cosmetics?: BoardCosmetics;
 }
 
 type SelectionMode =
@@ -75,7 +81,7 @@ const emptyMatchStats = (): MatchStats => ({
   attacksDeclared: 0,
 });
 
-export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChange, myPlayerIndex = 0, playerNames, pvpTimer, pvpConnection }: GameBoardProps) {
+export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChange, myPlayerIndex = 0, playerNames, pvpTimer, pvpConnection, cosmetics }: GameBoardProps) {
   const [gameState, setGameState] = useState<GameState>(initialState);
   const [, setSelectedCard] = useState<CardDefinition | BattleCard | null>(null);
   const [inspectedCard, setInspectedCard] = useState<CardDefinition | BattleCard | null>(null);
@@ -817,10 +823,12 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     ? 'Fase de ataque'
     : 'Jogue cartas, prepare o campo ou ataque';
   const actionPanelClass = 'bg-slate-950/70 border border-slate-700/70 rounded-xl px-3 py-2 shadow-xl shadow-black/20';
+  const playmatClass = cosmetics?.playmat ? `playmat-${cosmetics.playmat.replace(/_/g, '-')}` : 'playmat-default';
+  const playerCardFrame = cosmetics?.cardFrame ?? 'default';
 
   return (
-    <div className="h-screen text-white flex flex-col relative overflow-hidden"
-      style={{ background: 'radial-gradient(ellipse at center, #1e293b 0%, #0f172a 50%, #020617 100%)' }}>
+    <div className="h-screen text-white flex flex-col relative overflow-hidden">
+      <div className={`absolute inset-0 ${playmatClass}`} />
 
       {/* Subtle texture overlay */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
@@ -915,7 +923,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
               ) : (
                 <div className="flex flex-wrap gap-3 justify-center">
                   {discardableCards.map((card, i) => (
-                    <CardDisplay key={i} card={card} size="md" isValidTarget onClick={() => handleDiscardCardSelect(card)} />
+                    <CardDisplay key={i} card={card} size="md" cosmeticFrame={playerCardFrame} isValidTarget onClick={() => handleDiscardCardSelect(card)} />
                   ))}
                 </div>
               )}
@@ -1162,6 +1170,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                   card={player.hero}
                   isBattleCard
                   size="sm"
+                  cosmeticFrame={playerCardFrame}
                   isSelected={selectedAttackers.includes(player.hero.instanceId)}
                   isValidTarget={(selectionMode === 'selectEquipTarget' && validTargets.includes(player.hero.instanceId)) || (selectionMode === 'selectMountTarget' && validTargets.includes(player.hero.instanceId)) || (selectionMode === 'selectAllyForEffect' && validTargets.includes(player.hero.instanceId))}
                   isExhausted={player.hero.exhausted}
@@ -1178,10 +1187,11 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                       {unit ? (
                         <>
                           <CardDisplay
-                            card={unit}
-                            isBattleCard
-                            size="sm"
-                            isSelected={selectedAttackers.includes(unit.instanceId)}
+                           card={unit}
+                           isBattleCard
+                           size="sm"
+                           cosmeticFrame={playerCardFrame}
+                           isSelected={selectedAttackers.includes(unit.instanceId)}
                             isValidTarget={(selectionMode === 'selectEquipTarget' && validTargets.includes(unit.instanceId)) || (selectionMode === 'selectMountTarget' && validTargets.includes(unit.instanceId)) || (selectionMode === 'selectAllyForEffect' && validTargets.includes(unit.instanceId)) || (selectionMode === 'selectSpellTarget' && validTargets.includes(unit.instanceId))}
                             isExhausted={unit.exhausted}
                             onClick={() => handleBattleCardClick(unit, myIdx)}
@@ -1209,7 +1219,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
               {/* Player terrain */}
               <div className="shrink-0">
                 {player.terrain ? (
-                  <CardDisplay card={player.terrain} isBattleCard size="sm" onClick={() => setInspectedCard(player.terrain!)} />
+                  <CardDisplay card={player.terrain} isBattleCard size="sm" cosmeticFrame={playerCardFrame} onClick={() => setInspectedCard(player.terrain!)} />
                 ) : (
                   <div className="card-size-sm rounded-lg border border-dashed border-emerald-700/35 bg-emerald-950/10 flex items-center justify-center">
                     <span className="text-emerald-700/70 text-[10px]">Terreno</span>
@@ -1337,6 +1347,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                   <CardDisplay
                     card={card}
                     size="sm"
+                    cosmeticFrame={playerCardFrame}
                     isValidTarget={isPlayerTurn && isMainPhase && !gameState.gameOver && player.mana >= card.manaCost}
                     onClick={() => handleCardFromHand(card)}
                   />

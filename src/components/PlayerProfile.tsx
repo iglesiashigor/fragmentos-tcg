@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Award, Bot, Calendar, CheckCircle2, Crown, Gem, Medal, Shield, Sparkles, Target, Trophy, Users } from 'lucide-react';
+import { ArrowLeft, Award, Bot, Calendar, CheckCircle2, Coins, Crown, Gem, Medal, Palette, Shield, ShoppingBag, Sparkles, Target, Trophy, Users } from 'lucide-react';
 import { useAuth } from '../lib/authContext';
 import {
   fetchPlayerHistory,
@@ -11,12 +11,20 @@ import {
 } from '../lib/ranking';
 import {
   calculateLevelFromXp,
+  CARD_FRAMES,
   DAILY_MISSIONS,
+  defaultPlayerProgress,
+  equipCardFrame,
+  equipPlaymat,
   equipProfileFrame,
   fetchPlayerProgress,
   getTodayKey,
+  PLAYMATS,
   PlayerProgress,
   PROFILE_FRAMES,
+  purchaseShopItem,
+  SHOP_ITEMS,
+  ShopItem,
   xpNeededForLevel,
 } from '../lib/progression';
 import { getCardById } from '../data/cards';
@@ -24,9 +32,10 @@ import { getCardById } from '../data/cards';
 interface PlayerProfileProps {
   onBack: () => void;
   onShowAuth: () => void;
+  onProgressChange?: (progress: PlayerProgress) => void;
 }
 
-type Tab = 'overview' | 'missions' | 'history' | 'ranking';
+type Tab = 'overview' | 'missions' | 'shop' | 'history' | 'ranking';
 
 function resultLabel(result: PlayerMatchResult['result']) {
   if (result === 'win') return 'Vitoria';
@@ -56,7 +65,7 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps) {
+export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: PlayerProfileProps) {
   const { user, profile } = useAuth();
   const [tab, setTab] = useState<Tab>('overview');
   const [historyMode, setHistoryMode] = useState<'all' | 'pvp' | 'ai'>('all');
@@ -65,6 +74,7 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
   const [progress, setProgress] = useState<PlayerProgress | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingFrame, setSavingFrame] = useState<string | null>(null);
+  const [savingShop, setSavingShop] = useState<string | null>(null);
   const [frameMessage, setFrameMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -109,6 +119,16 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
   const completedMissions = new Set(progress?.daily_mission_date === today ? progress.completed_daily_missions : []);
   const equippedFrame = PROFILE_FRAMES.find(frame => frame.id === progress?.equipped_profile_frame) ?? PROFILE_FRAMES[0];
   const unlockedProfileFrames = progress?.unlocked_profile_frames ?? ['default'];
+  const unlockedCardFrames = progress?.unlocked_card_frames ?? ['default'];
+  const unlockedPlaymats = progress?.unlocked_playmats ?? ['default'];
+  const equippedCardFrame = progress?.equipped_card_frame ?? 'default';
+  const equippedPlaymat = progress?.equipped_playmat ?? 'default';
+  const gold = progress?.gold ?? 0;
+
+  const updateProgress = (nextProgress: PlayerProgress) => {
+    setProgress(nextProgress);
+    onProgressChange?.(nextProgress);
+  };
 
   const handleEquipFrame = async (frameId: string) => {
     if (!user || savingFrame) return;
@@ -124,18 +144,7 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
       setFrameMessage(result.error);
     } else {
       setProgress(current => ({
-        ...(current ?? {
-          player_id: user.id,
-          level: 1,
-          xp: 0,
-          total_xp: 0,
-          daily_mission_date: today,
-          mission_progress: {},
-          completed_daily_missions: [],
-          supporter: false,
-          unlocked_profile_frames: ['default'],
-          updated_at: new Date().toISOString(),
-        }),
+        ...(current ?? defaultPlayerProgress(user.id)),
         equipped_profile_frame: frameId,
         unlocked_profile_frames: current?.unlocked_profile_frames ?? ['default'],
         updated_at: new Date().toISOString(),
@@ -143,6 +152,56 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
       setFrameMessage('Moldura equipada.');
     }
     setSavingFrame(null);
+  };
+
+  const handlePurchase = async (item: ShopItem) => {
+    if (!user || savingShop) return;
+    setSavingShop(item.id);
+    setFrameMessage(null);
+    const result = await purchaseShopItem(user.id, item);
+    if (result.error || !result.progress) {
+      setFrameMessage(result.error ?? 'Nao foi possivel comprar o item.');
+    } else {
+      updateProgress(result.progress);
+      setFrameMessage('Item comprado.');
+    }
+    setSavingShop(null);
+  };
+
+  const handleEquipCardFrame = async (frameId: string) => {
+    if (!user || savingShop) return;
+    setSavingShop(frameId);
+    setFrameMessage(null);
+    const result = await equipCardFrame(user.id, frameId);
+    if (result.error) {
+      setFrameMessage(result.error);
+    } else {
+      updateProgress({
+        ...(progress ?? defaultPlayerProgress(user.id)),
+        equipped_card_frame: frameId,
+        updated_at: new Date().toISOString(),
+      });
+      setFrameMessage('Moldura de carta equipada.');
+    }
+    setSavingShop(null);
+  };
+
+  const handleEquipPlaymat = async (playmatId: string) => {
+    if (!user || savingShop) return;
+    setSavingShop(playmatId);
+    setFrameMessage(null);
+    const result = await equipPlaymat(user.id, playmatId);
+    if (result.error) {
+      setFrameMessage(result.error);
+    } else {
+      updateProgress({
+        ...(progress ?? defaultPlayerProgress(user.id)),
+        equipped_playmat: playmatId,
+        updated_at: new Date().toISOString(),
+      });
+      setFrameMessage('Campo equipado.');
+    }
+    setSavingShop(null);
   };
 
   if (!user) {
@@ -199,6 +258,10 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
                 <span className="px-3 py-1 rounded-full bg-slate-950/70 border border-white/10 text-sm text-blue-200">
                   Nivel {levelInfo.level}
                 </span>
+                <span className="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-300/30 text-sm text-amber-200 flex items-center gap-1.5">
+                  <Coins className="w-3.5 h-3.5" />
+                  {gold} gold
+                </span>
                 {progress?.supporter && (
                   <span className="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-300/30 text-sm text-amber-200">
                     Apoiador
@@ -232,6 +295,7 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
           {[
             ['overview', 'Resumo', Sparkles],
             ['missions', 'Missoes', Target],
+            ['shop', 'Loja', ShoppingBag],
             ['history', 'Historico', Calendar],
             ['ranking', 'Ranking', Trophy],
           ].map(([id, label, Icon]) => (
@@ -323,7 +387,7 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-3">
                           <h3 className="font-black text-white text-sm">{mission.title}</h3>
-                          <span className="text-xs font-bold text-blue-200">+{mission.xpReward} XP</span>
+                          <span className="text-xs font-bold text-blue-200">+{mission.xpReward} XP / +{mission.goldReward} gold</span>
                         </div>
                         <p className="text-xs text-slate-400 mt-1">{mission.description}</p>
                         <div className="mt-3">
@@ -342,6 +406,63 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
               })}
             </div>
           </Panel>
+        ) : tab === 'shop' ? (
+          <div className="grid lg:grid-cols-[1fr_1fr] gap-4">
+            <Panel title="Molduras de carta" icon={<Palette className="w-4 h-4 text-amber-300" />}>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {CARD_FRAMES.map(frame => {
+                  const owned = unlockedCardFrames.includes(frame.id);
+                  const equipped = equippedCardFrame === frame.id;
+                  const shopItem = SHOP_ITEMS.find(item => item.type === 'card_frame' && item.id === frame.id);
+                  return (
+                    <ShopCard
+                      key={frame.id}
+                      name={frame.name}
+                      description={frame.description}
+                      price={frame.price}
+                      owned={owned}
+                      equipped={equipped}
+                      canBuy={gold >= frame.price}
+                      disabled={savingShop !== null}
+                      onBuy={shopItem ? () => handlePurchase(shopItem) : undefined}
+                      onEquip={() => handleEquipCardFrame(frame.id)}
+                    >
+                      <div className={`w-16 h-24 rounded-lg bg-gradient-to-br from-slate-800 to-slate-950 border-2 border-slate-500 ${frame.className}`} />
+                    </ShopCard>
+                  );
+                })}
+              </div>
+            </Panel>
+
+            <Panel title="Campos de batalha" icon={<Sparkles className="w-4 h-4 text-blue-300" />}>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {PLAYMATS.map(playmat => {
+                  const owned = unlockedPlaymats.includes(playmat.id);
+                  const equipped = equippedPlaymat === playmat.id;
+                  const shopItem = SHOP_ITEMS.find(item => item.type === 'playmat' && item.id === playmat.id);
+                  return (
+                    <ShopCard
+                      key={playmat.id}
+                      name={playmat.name}
+                      description={playmat.description}
+                      price={playmat.price}
+                      owned={owned}
+                      equipped={equipped}
+                      canBuy={gold >= playmat.price}
+                      disabled={savingShop !== null}
+                      onBuy={shopItem ? () => handlePurchase(shopItem) : undefined}
+                      onEquip={() => handleEquipPlaymat(playmat.id)}
+                    >
+                      <div className={`w-full h-20 rounded-lg border border-white/10 ${playmat.className}`} />
+                    </ShopCard>
+                  );
+                })}
+              </div>
+              {frameMessage && (
+                <p className="mt-3 text-xs text-slate-400">{frameMessage}</p>
+              )}
+            </Panel>
+          </div>
         ) : tab === 'history' ? (
           <Panel title="Historico de partidas" icon={<Calendar className="w-4 h-4 text-blue-300" />}>
             <div className="flex gap-2 mb-4">
@@ -429,6 +550,61 @@ function Panel({ title, icon, children }: { title: string; icon: React.ReactNode
       </div>
       {children}
     </section>
+  );
+}
+
+function ShopCard({
+  name,
+  description,
+  price,
+  owned,
+  equipped,
+  canBuy,
+  disabled,
+  onBuy,
+  onEquip,
+  children,
+}: {
+  name: string;
+  description: string;
+  price: number;
+  owned: boolean;
+  equipped: boolean;
+  canBuy: boolean;
+  disabled: boolean;
+  onBuy?: () => void;
+  onEquip: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`rounded-xl border p-3 bg-slate-950/60 ${equipped ? 'border-amber-400/60' : 'border-slate-800'}`}>
+      <div className="mb-3 flex justify-center">{children}</div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-black text-white">{name}</h3>
+          <p className="text-xs text-slate-500 mt-0.5">{description}</p>
+        </div>
+        <span className="shrink-0 text-xs font-black text-amber-200 flex items-center gap-1">
+          <Coins className="w-3 h-3" />
+          {price}
+        </span>
+      </div>
+      <button
+        onClick={owned ? onEquip : onBuy}
+        disabled={disabled || (!owned && (!onBuy || !canBuy))}
+        className={`mt-3 w-full rounded-lg px-3 py-2 text-xs font-black border transition-colors ${
+          equipped
+            ? 'bg-amber-500/20 border-amber-300/40 text-amber-100'
+            : owned
+            ? 'bg-blue-600/20 border-blue-400/35 text-blue-100 hover:bg-blue-600/30'
+            : canBuy
+            ? 'bg-emerald-600/20 border-emerald-400/35 text-emerald-100 hover:bg-emerald-600/30'
+            : 'bg-slate-900 border-slate-800 text-slate-500 cursor-not-allowed'
+        }`}
+      >
+        {equipped ? 'Em uso' : owned ? 'Equipar' : canBuy ? 'Comprar' : 'Gold insuficiente'}
+      </button>
+    </div>
   );
 }
 
