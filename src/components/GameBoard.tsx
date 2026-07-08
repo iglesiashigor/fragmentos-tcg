@@ -827,8 +827,10 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const playerCardFrame = cosmetics?.cardFrame ?? 'default';
 
   return (
-    <div className="h-screen text-white flex flex-col relative overflow-hidden">
-      <div className={`absolute inset-0 ${playmatClass}`} />
+    <div
+      className="h-screen text-white flex flex-col relative overflow-hidden"
+      style={{ background: 'radial-gradient(ellipse at center, #111827 0%, #0f172a 48%, #020617 100%)' }}
+    >
 
       {/* Subtle texture overlay */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
@@ -1161,7 +1163,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
           </div>
 
           {/* Player zone */}
-          <div className="flex-1 rounded-2xl border border-blue-700/25 bg-gradient-to-t from-blue-950/20 via-slate-900/40 to-slate-950/20 p-3 flex flex-col gap-2 min-h-0 shadow-inner shadow-black/20">
+          <div className={`flex-1 rounded-2xl border border-blue-700/25 ${playmatClass} p-3 flex flex-col gap-2 min-h-0 shadow-inner shadow-black/20`}>
             {/* Player battlefield row */}
             <div className="flex-1 flex gap-3 items-center justify-center min-h-0">
               {/* Player hero */}
@@ -1336,7 +1338,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
           )}
 
           {/* Hand */}
-          <div className="bg-slate-950/65 rounded-xl border border-slate-700/70 p-2.5 shadow-xl shadow-black/20">
+          <div className={`${playmatClass} rounded-xl border border-slate-700/70 p-2.5 shadow-xl shadow-black/20`}>
             <div className="flex items-center gap-2 mb-2">
               <Hand className="w-3.5 h-3.5 text-slate-500" />
               <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Mão ({player.hand.length})</span>
