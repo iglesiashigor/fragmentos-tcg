@@ -115,8 +115,12 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
     md: 'card-size-md text-sm',
     lg: 'card-size-lg text-sm',
   };
-  const cosmeticClass = cosmeticFrame && cosmeticFrame !== 'default' ? `card-cosmetic-${cosmeticFrame}` : '';
-  const cosmeticTintClass = cosmeticFrame && cosmeticFrame !== 'default' ? `card-cosmetic-tint-${cosmeticFrame}` : '';
+  const cosmeticClass = cosmeticFrame && cosmeticFrame !== 'default'
+    ? `card-cosmetic-${cosmeticFrame} card-cosmetic-${cosmeticFrame}-${type}`
+    : '';
+  const cosmeticTintClass = cosmeticFrame && cosmeticFrame !== 'default'
+    ? `card-cosmetic-tint-${cosmeticFrame} card-cosmetic-tint-${cosmeticFrame}-${type}`
+    : '';
 
   if (showBack) {
     return (
