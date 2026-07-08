@@ -109,6 +109,8 @@ body {
 .tier-strong { border-bottom: 2px solid #a78bfa; }
 
 .card-cosmetic-amber {
+  border-color: rgba(251, 191, 36, 0.95) !important;
+  background-image: linear-gradient(145deg, #92400e 0%, #b45309 45%, #451a03 100%) !important;
   box-shadow:
     0 0 0 1px rgba(251, 191, 36, 0.65),
     0 0 18px rgba(251, 191, 36, 0.22),
@@ -116,6 +118,8 @@ body {
 }
 
 .card-cosmetic-sapphire {
+  border-color: rgba(96, 165, 250, 0.95) !important;
+  background-image: linear-gradient(145deg, #1d4ed8 0%, #1e40af 45%, #0f172a 100%) !important;
   box-shadow:
     0 0 0 1px rgba(96, 165, 250, 0.7),
     0 0 18px rgba(59, 130, 246, 0.26),
@@ -123,6 +127,8 @@ body {
 }
 
 .card-cosmetic-ruby {
+  border-color: rgba(248, 113, 113, 0.95) !important;
+  background-image: linear-gradient(145deg, #991b1b 0%, #be123c 45%, #450a0a 100%) !important;
   box-shadow:
     0 0 0 1px rgba(248, 113, 113, 0.75),
     0 0 18px rgba(225, 29, 72, 0.26),
@@ -130,10 +136,40 @@ body {
 }
 
 .card-cosmetic-emerald {
+  border-color: rgba(52, 211, 153, 0.95) !important;
+  background-image: linear-gradient(145deg, #047857 0%, #059669 45%, #022c22 100%) !important;
   box-shadow:
     0 0 0 1px rgba(52, 211, 153, 0.75),
     0 0 18px rgba(16, 185, 129, 0.26),
     0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.card-cosmetic-tint-amber {
+  background:
+    linear-gradient(180deg, rgba(251, 191, 36, 0.2), rgba(120, 53, 15, 0.28)),
+    radial-gradient(circle at 50% 12%, rgba(253, 230, 138, 0.2), transparent 45%);
+  mix-blend-mode: color;
+}
+
+.card-cosmetic-tint-sapphire {
+  background:
+    linear-gradient(180deg, rgba(96, 165, 250, 0.2), rgba(30, 64, 175, 0.3)),
+    radial-gradient(circle at 50% 12%, rgba(191, 219, 254, 0.18), transparent 45%);
+  mix-blend-mode: color;
+}
+
+.card-cosmetic-tint-ruby {
+  background:
+    linear-gradient(180deg, rgba(248, 113, 113, 0.22), rgba(136, 19, 55, 0.32)),
+    radial-gradient(circle at 50% 12%, rgba(254, 202, 202, 0.16), transparent 45%);
+  mix-blend-mode: color;
+}
+
+.card-cosmetic-tint-emerald {
+  background:
+    linear-gradient(180deg, rgba(52, 211, 153, 0.2), rgba(6, 95, 70, 0.32)),
+    radial-gradient(circle at 50% 12%, rgba(167, 243, 208, 0.16), transparent 45%);
+  mix-blend-mode: color;
 }
 
 .playmat-default {
