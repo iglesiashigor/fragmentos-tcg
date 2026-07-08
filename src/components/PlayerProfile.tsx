@@ -181,7 +181,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
         equipped_card_frame: frameId,
         updated_at: new Date().toISOString(),
       });
-      setFrameMessage('Moldura de carta equipada.');
+      setFrameMessage('Cor de carta equipada.');
     }
     setSavingShop(null);
   };
@@ -408,7 +408,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
           </Panel>
         ) : tab === 'shop' ? (
           <div className="grid lg:grid-cols-[1fr_1fr] gap-4">
-            <Panel title="Molduras de carta" icon={<Palette className="w-4 h-4 text-amber-300" />}>
+            <Panel title="Cores de carta" icon={<Palette className="w-4 h-4 text-amber-300" />}>
               <div className="grid sm:grid-cols-2 gap-3">
                 {CARD_FRAMES.map(frame => {
                   const owned = unlockedCardFrames.includes(frame.id);

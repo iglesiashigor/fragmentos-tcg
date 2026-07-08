@@ -116,6 +116,7 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
     lg: 'card-size-lg text-sm',
   };
   const cosmeticClass = cosmeticFrame && cosmeticFrame !== 'default' ? `card-cosmetic-${cosmeticFrame}` : '';
+  const cosmeticTintClass = cosmeticFrame && cosmeticFrame !== 'default' ? `card-cosmetic-tint-${cosmeticFrame}` : '';
 
   if (showBack) {
     return (
@@ -138,6 +139,10 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
       onClick={onClick}
       title={card.name}
     >
+      {cosmeticTintClass && (
+        <div className={`absolute inset-0 z-[12] pointer-events-none ${cosmeticTintClass}`} />
+      )}
+
       {/* Mana cost - crystal design */}
       <div className="absolute top-1 left-1 w-6 h-6 z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-blue-600 rounded-md transform rotate-45 border border-blue-300/50 shadow-lg">
