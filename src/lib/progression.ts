@@ -148,36 +148,36 @@ export const PROFILE_FRAMES = [
 export const CARD_FRAMES = [
   {
     id: 'default',
-    name: 'Carta Inicial',
+    name: 'Cor Inicial',
     description: 'Visual padrao das cartas.',
     price: 0,
     className: 'card-cosmetic-default',
   },
   {
     id: 'amber',
-    name: 'Carta Ambar',
-    description: 'Borda quente para suas cartas.',
+    name: 'Cor Ambar',
+    description: 'Pinta suas cartas com tons de ambar.',
     price: 300,
     className: 'card-cosmetic-amber',
   },
   {
     id: 'sapphire',
-    name: 'Carta Safira',
-    description: 'Borda azul cristalina.',
+    name: 'Cor Safira',
+    description: 'Pinta suas cartas com tons de safira.',
     price: 500,
     className: 'card-cosmetic-sapphire',
   },
   {
     id: 'ruby',
-    name: 'Carta Rubi',
-    description: 'Borda vermelha intensa.',
+    name: 'Cor Rubi',
+    description: 'Pinta suas cartas com tons de rubi.',
     price: 750,
     className: 'card-cosmetic-ruby',
   },
   {
     id: 'emerald',
-    name: 'Carta Esmeralda',
-    description: 'Borda verde arcana.',
+    name: 'Cor Esmeralda',
+    description: 'Pinta suas cartas com tons de esmeralda.',
     price: 750,
     className: 'card-cosmetic-emerald',
   },
@@ -347,7 +347,7 @@ export async function equipCardFrame(playerId: string, frameId: string) {
 
   const progress = current ?? defaultPlayerProgress(playerId);
   if (!(progress.unlocked_card_frames ?? ['default']).includes(frameId)) {
-    return { error: 'Moldura de carta ainda nao comprada.' };
+    return { error: 'Cor de carta ainda nao comprada.' };
   }
 
   const { error } = await supabase
