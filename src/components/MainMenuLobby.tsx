@@ -3,6 +3,7 @@ import { DeckDefinition } from '../types/game';
 import { DEFAULT_DECKS, deleteDeck, getSavedDecks } from '../data/defaultDecks';
 import { getCardById } from '../data/cards';
 import { useAuth } from '../lib/authContext';
+import { fetchPlayerProgress, PlayerProgress } from '../lib/progression';
 import {
   AlertTriangle, BookOpen, ChevronRight, Coins, Crown, Edit3, Gem, Globe,
   Layers, LogIn, LogOut, Plus, Shield, Sparkles, Star, Swords, Trash2,
@@ -44,6 +45,7 @@ export default function MainMenuLobby({
   const [selectedAIDeck, setSelectedAIDeck] = useState<string | null>(displayDecks[1]?.id ?? displayDecks[0]?.id ?? null);
   const [gameMode, setGameMode] = useState<'ai' | 'pvp'>('ai');
   const [error, setError] = useState('');
+  const [playerProgress, setPlayerProgress] = useState<PlayerProgress | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     title: string;
     message: string;
@@ -63,6 +65,23 @@ export default function MainMenuLobby({
     if (!selectedAIDeck && displayDecks[1]) setSelectedAIDeck(displayDecks[1].id);
     if (!selectedAIDeck && !displayDecks[1] && displayDecks[0]) setSelectedAIDeck(displayDecks[0].id);
   }, [displayDecks, selectedAIDeck, selectedPlayerDeck]);
+
+  useEffect(() => {
+    if (!user) {
+      setPlayerProgress(null);
+      return;
+    }
+
+    let mounted = true;
+    void fetchPlayerProgress(user.id, user.email).then(result => {
+      if (!mounted) return;
+      setPlayerProgress(result.data);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
 
   const performDelete = async (deckId: string) => {
     if (deckId.startsWith('deck-')) {
@@ -151,7 +170,7 @@ export default function MainMenuLobby({
           <div className="flex flex-wrap items-center gap-2">
             {user ? (
               <>
-                <button onClick={onOpenProfile} className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 hover:border-amber-500/60 transition-colors">
+                <div className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2">
                   <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-400/40 flex items-center justify-center">
                     <User className="w-4 h-4 text-amber-300" />
                   </div>
@@ -159,7 +178,7 @@ export default function MainMenuLobby({
                     <div className="text-sm font-bold text-white">{profileName}</div>
                     <div className="text-[11px] text-slate-400">{profile?.rating ?? 0} pts</div>
                   </div>
-                </button>
+                </div>
                 <div className="hidden sm:flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
                   <Trophy className="w-4 h-4 text-amber-300" />
                   {profile?.wins ?? 0}V / {profile?.losses ?? 0}D
@@ -180,7 +199,7 @@ export default function MainMenuLobby({
       </header>
 
       <main className="max-w-7xl mx-auto w-full px-4 py-5 lg:py-7">
-        <div className="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)_320px] gap-5">
+        <div className="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)] gap-5">
           <aside className="space-y-3">
             <button
               onClick={() => setGameMode('ai')}
@@ -244,6 +263,49 @@ export default function MainMenuLobby({
                 <BookOpen className="w-4 h-4" />
                 Colecao
               </button>
+              <button onClick={onOpenProfile} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-3 text-sm font-bold text-slate-300 hover:border-emerald-500/50 hover:text-emerald-200 transition-colors">
+                <Coins className="w-4 h-4" />
+                Loja
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Gem className="w-5 h-5 text-amber-300" />
+                <h3 className="font-black text-white">Progresso</h3>
+              </div>
+              {user ? (
+                <div className="space-y-3">
+                  <div className="rounded-xl bg-slate-900/70 border border-slate-800 p-3">
+                    <div className="flex justify-between text-xs text-slate-400 mb-2">
+                      <span>Ranking</span>
+                      <span>{profile?.rating ?? 0} pts</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-amber-500 to-emerald-400" style={{ width: `${Math.min(100, Math.max(8, ((profile?.rating ?? 0) / 1500) * 100))}%` }} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl bg-slate-900/70 border border-slate-800 p-3">
+                      <Coins className="w-4 h-4 text-amber-300 mb-1" />
+                      <div className="text-lg font-black">{(playerProgress?.gold ?? 0).toLocaleString('pt-BR')}</div>
+                      <div className="text-xs text-slate-500">Loja ativa</div>
+                    </div>
+                    <div className="rounded-xl bg-slate-900/70 border border-slate-800 p-3">
+                      <Trophy className="w-4 h-4 text-emerald-300 mb-1" />
+                      <div className="text-lg font-black">{winRate}%</div>
+                      <div className="text-xs text-slate-500">Vitorias</div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl bg-slate-900/70 border border-slate-800 p-4 text-center">
+                  <p className="text-sm text-slate-400 mb-3">Entre para salvar ranking, gold, missoes e cosmeticos.</p>
+                  <button onClick={onShowAuth} className="w-full rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-2 text-sm font-black transition-colors">
+                    Entrar
+                  </button>
+                </div>
+              )}
             </div>
           </aside>
 
@@ -262,7 +324,7 @@ export default function MainMenuLobby({
             </div>
 
             <div className="p-5 space-y-5">
-              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_220px] gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-4">
                 <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -290,7 +352,7 @@ export default function MainMenuLobby({
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 flex flex-col justify-between gap-3">
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 flex flex-col justify-between gap-4">
                   {gameMode === 'ai' ? (
                     <>
                       <div>
@@ -298,6 +360,20 @@ export default function MainMenuLobby({
                         <div className="mt-2 flex items-center gap-2">
                           <Shield className="w-4 h-4 text-red-300" />
                           <span className="text-sm font-bold text-white">Baralho da IA</span>
+                        </div>
+                        <div className="mt-3 rounded-xl border border-red-900/40 bg-red-950/20 p-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-14 rounded-lg bg-gradient-to-br from-red-800 to-slate-950 border border-red-500/40 flex items-center justify-center shrink-0">
+                              <Shield className="w-5 h-5 text-red-300" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-black text-white truncate">{selectedAiDeck?.name ?? 'IA'}</div>
+                              <div className="text-xs text-slate-400 truncate">{selectedAiHero?.name ?? 'Heroi'}</div>
+                              <div className="text-[11px] text-slate-500 mt-1">
+                                {(selectedAiDeck?.coreCards.length ?? 0) + (selectedAiDeck?.neutralCards.length ?? 0)} cartas
+                              </div>
+                            </div>
+                          </div>
                         </div>
                         <select
                           value={selectedAIDeck ?? ''}
@@ -313,9 +389,6 @@ export default function MainMenuLobby({
                             );
                           })}
                         </select>
-                        <p className="text-xs text-slate-400 mt-2 truncate">
-                          {selectedAiDeck?.name ?? 'IA'} com {selectedAiHero?.name ?? 'Heroi'}
-                        </p>
                       </div>
                       <button onClick={handleStartGame} disabled={decksLoading} className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-60 disabled:cursor-wait text-slate-950 px-4 py-3 font-black transition-colors shadow-lg shadow-amber-950/30">
                         <Swords className="w-5 h-5" />
@@ -388,47 +461,6 @@ export default function MainMenuLobby({
               </div>
             </div>
           </section>
-
-          <aside className="space-y-4">
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Gem className="w-5 h-5 text-amber-300" />
-                <h3 className="font-black text-white">Progresso</h3>
-              </div>
-              {user ? (
-                <div className="space-y-3">
-                  <div className="rounded-xl bg-slate-900/70 border border-slate-800 p-3">
-                    <div className="flex justify-between text-xs text-slate-400 mb-2">
-                      <span>Ranking</span>
-                      <span>{profile?.rating ?? 0} pts</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-amber-500 to-emerald-400" style={{ width: `${Math.min(100, Math.max(8, ((profile?.rating ?? 0) / 1500) * 100))}%` }} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-xl bg-slate-900/70 border border-slate-800 p-3">
-                      <Coins className="w-4 h-4 text-amber-300 mb-1" />
-                      <div className="text-lg font-black">Gold</div>
-                      <div className="text-xs text-slate-500">Loja ativa</div>
-                    </div>
-                    <div className="rounded-xl bg-slate-900/70 border border-slate-800 p-3">
-                      <Trophy className="w-4 h-4 text-emerald-300 mb-1" />
-                      <div className="text-lg font-black">{winRate}%</div>
-                      <div className="text-xs text-slate-500">Vitorias</div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-xl bg-slate-900/70 border border-slate-800 p-4 text-center">
-                  <p className="text-sm text-slate-400 mb-3">Entre para salvar ranking, gold, missoes e cosmeticos.</p>
-                  <button onClick={onShowAuth} className="w-full rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-2 text-sm font-black transition-colors">
-                    Entrar
-                  </button>
-                </div>
-              )}
-            </div>
-          </aside>
         </div>
       </main>
     </div>
