@@ -56,6 +56,7 @@ export default function MainMenuLobby({
   const selectedAiDeck = displayDecks.find(deck => deck.id === selectedAIDeck) ?? displayDecks[1] ?? displayDecks[0];
   const selectedHero = selectedDeck ? getCardById(selectedDeck.heroId) : null;
   const selectedAiHero = selectedAiDeck ? getCardById(selectedAiDeck.heroId) : null;
+  const defaultDeckIds = useMemo(() => new Set(DEFAULT_DECKS.map(deck => deck.id)), []);
   const profileName = profile?.username ?? user?.email?.split('@')[0] ?? 'Jogador';
   const playedMatches = (profile?.wins ?? 0) + (profile?.losses ?? 0);
   const winRate = playedMatches > 0 ? Math.round(((profile?.wins ?? 0) / playedMatches) * 100) : 0;
@@ -430,6 +431,7 @@ export default function MainMenuLobby({
                   {displayDecks.map(deck => {
                     const hero = getCardById(deck.heroId);
                     const isSelected = selectedPlayerDeck === deck.id;
+                    const isDefaultDeck = defaultDeckIds.has(deck.id);
                     return (
                       <div key={deck.id} className={`rounded-xl border p-3 transition-all ${isSelected ? 'border-amber-400/80 bg-amber-950/20 shadow-lg shadow-amber-950/20' : 'border-slate-800 bg-slate-900/50 hover:border-slate-600'}`}>
                         <button onClick={() => setSelectedPlayerDeck(deck.id)} className="w-full text-left flex items-center gap-3">
@@ -445,15 +447,21 @@ export default function MainMenuLobby({
                             <p className="text-[11px] text-slate-500 mt-1">{deck.coreCards.length + deck.neutralCards.length} cartas</p>
                           </div>
                         </button>
-                        <div className="mt-3 flex gap-2">
-                          <button onClick={() => onOpenDeckBuilder(deck)} className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 px-3 py-2 text-xs font-bold text-slate-200 transition-colors">
-                            <Edit3 className="w-3.5 h-3.5" />
-                            Editar
-                          </button>
-                          <button onClick={() => handleDelete(deck.id, deck.name)} className="inline-flex items-center justify-center rounded-lg bg-red-950/50 hover:bg-red-900 border border-red-900/60 px-3 py-2 text-red-300 transition-colors" aria-label={`Deletar ${deck.name}`}>
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                        {isDefaultDeck ? (
+                          <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-200">
+                            Baralho padrao
+                          </div>
+                        ) : (
+                          <div className="mt-3 flex gap-2">
+                            <button onClick={() => onOpenDeckBuilder(deck)} className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 px-3 py-2 text-xs font-bold text-slate-200 transition-colors">
+                              <Edit3 className="w-3.5 h-3.5" />
+                              Editar
+                            </button>
+                            <button onClick={() => handleDelete(deck.id, deck.name)} className="inline-flex items-center justify-center rounded-lg bg-red-950/50 hover:bg-red-900 border border-red-900/60 px-3 py-2 text-red-300 transition-colors" aria-label={`Deletar ${deck.name}`}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
