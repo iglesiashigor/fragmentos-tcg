@@ -30,6 +30,11 @@ interface GameBoardProps {
     secondsRemaining: number;
     faults: [number, number];
   };
+  pvpConnection?: {
+    saving: boolean;
+    opponentAbsentSeconds: number | null;
+    connected: boolean;
+  };
 }
 
 type SelectionMode =
@@ -70,7 +75,7 @@ const emptyMatchStats = (): MatchStats => ({
   attacksDeclared: 0,
 });
 
-export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChange, myPlayerIndex = 0, playerNames, pvpTimer }: GameBoardProps) {
+export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChange, myPlayerIndex = 0, playerNames, pvpTimer, pvpConnection }: GameBoardProps) {
   const [gameState, setGameState] = useState<GameState>(initialState);
   const [, setSelectedCard] = useState<CardDefinition | BattleCard | null>(null);
   const [inspectedCard, setInspectedCard] = useState<CardDefinition | BattleCard | null>(null);
@@ -125,6 +130,20 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const isPlayerTurn = gameState.currentPlayer === myIdx;
   const isMainPhase = gameState.phase === 'main';
   const isAttackPhase = gameState.phase === 'attack';
+  const actionLocked = isPvP && pvpConnection?.saving;
+  const connectionLabel = pvpConnection?.saving
+    ? 'Salvando jogada'
+    : pvpConnection?.connected
+    ? 'Oponente online'
+    : pvpConnection?.opponentAbsentSeconds !== null && pvpConnection?.opponentAbsentSeconds !== undefined
+    ? `Oponente ausente ${pvpConnection.opponentAbsentSeconds}s`
+    : 'Conectando';
+
+  const blockIfLocked = () => {
+    if (!actionLocked) return false;
+    setGameMessage('Aguarde a jogada ser salva.');
+    return true;
+  };
 
   const addMatchStat = (state: GameState, playerIndex: PlayerIndex, key: keyof MatchStats, amount = 1): GameState => {
     const stats = state.matchStats ?? [emptyMatchStats(), emptyMatchStats()];
@@ -193,6 +212,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   }, [gameState, isPvP, onStateChange]);
 
   const handleEndTurn = () => {
+    if (blockIfLocked()) return;
     if (!isPlayerTurn || gameState.gameOver) return;
     resetSelections();
     const s = finishTurn(addMatchStat(gameState, myIdx, 'turnsEnded'));
@@ -202,6 +222,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const timerOwnerLabel = gameState.currentPlayer === myIdx ? myDisplayName : oppDisplayName;
 
   const handleSurrender = () => {
+    if (blockIfLocked()) return;
     if (gameState.gameOver) return;
     const finalState: GameState = {
       ...gameState,
@@ -222,6 +243,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   };
 
   const handleDeclareAttackPhase = () => {
+    if (blockIfLocked()) return;
     if (!isPlayerTurn || gameState.gameOver) return;
     setGameState(s => ({ ...s, phase: 'attack' }));
     setSelectionMode('selectAttacker');
@@ -423,6 +445,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   });
 
   const handleCardFromHand = (card: CardDefinition, bypassRecoverConfirm = false) => {
+    if (blockIfLocked()) return;
     if (!isPlayerTurn || gameState.gameOver) return;
     if (isAttackPhase) {
       setGameMessage('Não é possível jogar cartas na fase de ataque!');
@@ -538,6 +561,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   };
 
   const handleBattleCardClick = (card: BattleCard, owner: PlayerIndex) => {
+    if (blockIfLocked()) return;
     if (gameState.gameOver) return;
 
     if (selectionMode === 'selectSpellTarget' && validTargets.includes(card.instanceId)) {
@@ -646,6 +670,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   };
 
   const handleHeroClick = (owner: PlayerIndex) => {
+    if (blockIfLocked()) return;
     if (gameState.gameOver) return;
     const hero = owner === myIdx ? player.hero : ai.hero;
 
@@ -739,6 +764,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   };
 
   const handleDeclareAttack = () => {
+    if (blockIfLocked()) return;
     if (selectedAttackers.length === 0) { setGameMessage('Selecione atacantes primeiro!'); return; }
     const allAttackers = [player.hero, ...player.units].filter(u => selectedAttackers.includes(u.instanceId));
     const firstAttacker = allAttackers[0];
@@ -970,6 +996,18 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
             <AlertTriangle className="w-3.5 h-3.5 text-amber-300" />
             <span>{myLabel} {pvpTimer.faults[myIdx]}/2</span>
             <span>{oppLabel} {pvpTimer.faults[oppIdx]}/2</span>
+          </div>
+        )}
+        {isPvP && pvpConnection && (
+          <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-semibold ${
+            pvpConnection.saving
+              ? 'bg-blue-950/60 text-blue-200 border-blue-600/50'
+              : pvpConnection.connected
+              ? 'bg-emerald-950/60 text-emerald-200 border-emerald-600/50'
+              : 'bg-amber-950/60 text-amber-200 border-amber-600/50'
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${pvpConnection.connected && !pvpConnection.saving ? 'bg-emerald-400' : 'bg-amber-300'} animate-pulse`} />
+            <span>{connectionLabel}</span>
           </div>
         )}
         <button

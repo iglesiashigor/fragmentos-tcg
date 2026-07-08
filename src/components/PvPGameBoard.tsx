@@ -22,6 +22,12 @@ interface DeckRow {
   neutral_cards: { cardId: string; count: number }[];
 }
 
+interface RoomPresence {
+  status: string;
+  player1_last_seen: string | null;
+  player2_last_seen: string | null;
+}
+
 function rowToDeck(row: DeckRow): DeckDefinition {
   return {
     id: row.id,
@@ -76,6 +82,10 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
   const [winner, setWinner] = useState<PlayerIndex | 'draw' | null>(null);
   const [playerNames, setPlayerNames] = useState<[string, string]>(['Jogador 1', 'Jogador 2']);
   const [secondsRemaining, setSecondsRemaining] = useState(60);
+  const [roomPresence, setRoomPresence] = useState<RoomPresence | null>(null);
+  const [savingMove, setSavingMove] = useState(false);
+  const [opponentAbsentSeconds, setOpponentAbsentSeconds] = useState<number | null>(null);
+  const disconnectProcessedRef = useRef(false);
   const processingTimeoutRef = useRef<string | null>(null);
   const savedMatchRef = useRef<string | null>(null);
   const latestGameStateRef = useRef<GameState | null>(null);
@@ -157,13 +167,17 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
       };
       const namedInitialState = formatPvpLog(initialGameState, playerNamesRef.current);
 
-      await supabase
+      const { data: updatedRoom } = await supabase
         .from('game_rooms')
         .update({ game_state: namedInitialState, status: 'active' })
-        .eq('id', roomId);
+        .eq('id', roomId)
+        .eq('status', 'active')
+        .is('game_state', null)
+        .select('game_state')
+        .maybeSingle();
 
       if (mounted) {
-        applyGameState(namedInitialState);
+        applyGameState((updatedRoom?.game_state as GameState | null) ?? namedInitialState);
         setLoading(false);
       }
     };
@@ -179,6 +193,11 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
       }
 
       setPlayerNumber(myNumber);
+      setRoomPresence({
+        status: room.status,
+        player1_last_seen: room.player1_last_seen ?? null,
+        player2_last_seen: room.player2_last_seen ?? null,
+      });
       if (room.player1_id && room.player2_id) {
         setPlayerIds([room.player1_id, room.player2_id]);
       }
@@ -243,6 +262,66 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
   }, []);
 
   useEffect(() => {
+    if (!roomId || playerNumber === null || gameState?.gameOver) return;
+
+    const lastSeenColumn = playerNumber === 0 ? 'player1_last_seen' : 'player2_last_seen';
+    const sendHeartbeat = async () => {
+      await supabase
+        .from('game_rooms')
+        .update({ [lastSeenColumn]: new Date().toISOString() })
+        .eq('id', roomId)
+        .eq('status', 'active');
+    };
+
+    void sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 10000);
+    return () => clearInterval(interval);
+  }, [gameState?.gameOver, playerNumber, roomId]);
+
+  useEffect(() => {
+    if (!roomId || !gameState || gameState.gameOver || playerNumber === null || !roomPresence) return;
+    if (roomPresence.status !== 'active') return;
+
+    const opponentIndex = (1 - playerNumber) as PlayerIndex;
+    const opponentSeen = opponentIndex === 0 ? roomPresence.player1_last_seen : roomPresence.player2_last_seen;
+    if (!opponentSeen) return;
+
+    const checkDisconnect = setInterval(() => {
+      if (disconnectProcessedRef.current) return;
+      const secondsSinceSeen = Math.floor((Date.now() - new Date(opponentSeen).getTime()) / 1000);
+      if (secondsSinceSeen < 90) return;
+
+      disconnectProcessedRef.current = true;
+      const winnerIndex = playerNumber as PlayerIndex;
+      const nextState: GameState = formatPvpLog({
+        ...gameState,
+        gameOver: true,
+        winner: winnerIndex,
+        pendingEffect: null,
+        stateVersion: (gameState.stateVersion ?? 0) + 1,
+        log: [
+          ...gameState.log,
+          `${playerNames[opponentIndex]} perdeu a conexao com a partida.`,
+          `${playerNames[playerNumber]} venceu por desconexao do oponente.`,
+        ],
+      }, playerNamesRef.current);
+
+      void (async () => {
+        await supabase
+          .from('game_rooms')
+          .update({ game_state: nextState, status: 'completed' })
+          .eq('id', roomId)
+          .eq('status', 'active');
+
+        setGameState(nextState);
+        setWinner(winnerIndex);
+      })();
+    }, 5000);
+
+    return () => clearInterval(checkDisconnect);
+  }, [gameState, playerNames, playerNumber, roomId, roomPresence]);
+
+  useEffect(() => {
     if (!user || !gameState?.gameOver || gameState.winner === null || playerNumber === null || !playerIds) return;
     const matchUid = `pvp-${roomId}`;
     if (savedMatchRef.current === matchUid) return;
@@ -255,7 +334,9 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
       : 'loss';
     const opponentIndex = (1 - playerNumber) as PlayerIndex;
     const normalizedLog = gameState.log.join(' ').toLowerCase();
-    const finishReason = normalizedLog.includes('inatividade')
+    const finishReason = normalizedLog.includes('desconex')
+      ? 'disconnect'
+      : normalizedLog.includes('inatividade')
       ? 'inactivity'
       : normalizedLog.includes('desist')
       ? 'surrender'
@@ -280,10 +361,16 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
         stats: gameState.matchStats?.[playerNumber] ?? null,
       }))
       .then(() => refreshProfile());
+
+    void supabase
+      .from('game_rooms')
+      .update({ status: 'completed', game_state: gameState })
+      .eq('id', roomId);
   }, [gameState, playerIds, playerNames, playerNumber, refreshProfile, roomId, user]);
 
   const handleStateChange = useCallback(async (newState: GameState) => {
     if (!roomId) return;
+    setSavingMove(true);
     const previousState = latestGameStateRef.current;
     const turnChanged = previousState && (
       previousState.currentPlayer !== newState.currentPlayer ||
@@ -300,14 +387,23 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
     latestGameStateRef.current = stateToSave;
     setGameState(stateToSave);
 
-    const { error: updateError } = await supabase
+    const saveState = async () => supabase
       .from('game_rooms')
-      .update({ game_state: stateToSave })
-      .eq('id', roomId);
+      .update({ game_state: stateToSave, status: stateToSave.gameOver ? 'completed' : 'active' })
+      .eq('id', roomId)
+      .select('id')
+      .maybeSingle();
+
+    let { error: updateError } = await saveState();
+    if (updateError) {
+      await new Promise(resolve => setTimeout(resolve, 800));
+      ({ error: updateError } = await saveState());
+    }
 
     if (updateError) {
-      setError('Nao foi possivel salvar a jogada. Tente novamente.');
+      setError('Nao foi possivel salvar a jogada. Verifique a conexao e tente novamente.');
     }
+    setSavingMove(false);
   }, [roomId]);
 
   useEffect(() => {
@@ -365,7 +461,7 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
       void (async () => {
         const { error: updateError } = await supabase
           .from('game_rooms')
-          .update({ game_state: nextState })
+          .update({ game_state: nextState, status: nextState.gameOver ? 'completed' : 'active' })
           .eq('id', roomId);
 
         if (updateError) {
@@ -384,6 +480,28 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
 
     return () => clearInterval(interval);
   }, [gameState, playerNumber, playerNames, roomId]);
+
+  useEffect(() => {
+    if (playerNumber === null || !roomPresence) {
+      setOpponentAbsentSeconds(null);
+      return;
+    }
+
+    const opponentIndex = (1 - playerNumber) as PlayerIndex;
+    const opponentSeen = opponentIndex === 0 ? roomPresence.player1_last_seen : roomPresence.player2_last_seen;
+    if (!opponentSeen) {
+      setOpponentAbsentSeconds(null);
+      return;
+    }
+
+    const updateAbsence = () => {
+      setOpponentAbsentSeconds(Math.max(0, Math.floor((Date.now() - new Date(opponentSeen).getTime()) / 1000)));
+    };
+
+    updateAbsence();
+    const interval = setInterval(updateAbsence, 1000);
+    return () => clearInterval(interval);
+  }, [playerNumber, roomPresence]);
 
   if (loading) return (
     <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
@@ -507,6 +625,11 @@ export default function PvPGameBoard({ roomId, onBack }: PvPGameBoardProps) {
       pvpTimer={{
         secondsRemaining,
         faults: gameState.inactivityFaults ?? [0, 0],
+      }}
+      pvpConnection={{
+        saving: savingMove,
+        opponentAbsentSeconds,
+        connected: opponentAbsentSeconds === null || opponentAbsentSeconds < 25,
       }}
     />
   );

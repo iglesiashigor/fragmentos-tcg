@@ -18,6 +18,9 @@ interface GameRoom {
   player1_deck_id: string | null;
   player2_deck_id: string | null;
   created_at: string;
+  updated_at?: string;
+  player1_last_seen?: string | null;
+  player2_last_seen?: string | null;
   host_username?: string;
 }
 
@@ -41,6 +44,7 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
   const { signOut } = useAuth();
   const { decks: dbDecks } = useDecks();
   const allDecks = user ? dbDecks : decks;
+  const staleWaitingCutoff = () => new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
   useEffect(() => {
     if (allDecks.length > 0 && !selectedDeck) {
@@ -49,17 +53,28 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
   }, [allDecks, selectedDeck]);
 
   const fetchRooms = useCallback(async () => {
+    if (user) {
+      await supabase
+        .from('game_rooms')
+        .delete()
+        .eq('status', 'waiting')
+        .is('player2_id', null)
+        .eq('player1_id', user.id)
+        .lt('created_at', staleWaitingCutoff());
+    }
+
     const { data, error } = await supabase
       .from('game_rooms')
       .select('*')
       .eq('status', 'waiting')
       .is('player2_id', null)
+      .gte('created_at', staleWaitingCutoff())
       .order('created_at', { ascending: false });
     if (!error && data) {
       setRooms(data);
     }
     setLoading(false);
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchRooms();
@@ -109,6 +124,26 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
     if (!user) { onShowAuth(); return; }
     if (!selectedDeck) { setError('Selecione um baralho.'); return; }
     setCreating(true);
+    setError('');
+
+    const { data: existingRoom } = await supabase
+      .from('game_rooms')
+      .select('*')
+      .eq('player1_id', user.id)
+      .eq('status', 'waiting')
+      .is('player2_id', null)
+      .gte('created_at', staleWaitingCutoff())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingRoom) {
+      setMyRoom(existingRoom.id);
+      setRoomDetail(existingRoom as GameRoom);
+      setCreating(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('game_rooms')
       .insert({
@@ -118,6 +153,7 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
         player2_deck_id: null,
         player1_ready: true,
         status: 'waiting',
+        player1_last_seen: new Date().toISOString(),
       })
       .select('*')
       .single();
@@ -142,11 +178,13 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
         player2_deck_id: selectedDeck,
         player2_ready: true,
         status: 'active',
+        player2_last_seen: new Date().toISOString(),
       })
       .eq('id', roomId)
       .eq('status', 'waiting')
       .is('player2_id', null)
       .neq('player1_id', user.id)
+      .gte('created_at', staleWaitingCutoff())
       .select('id')
       .maybeSingle();
     if (error) {
@@ -177,6 +215,13 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
     }
   };
 
+  const handleBack = async () => {
+    if (roomDetail?.status === 'waiting') {
+      await deleteRoom(roomDetail.id);
+    }
+    onBack();
+  };
+
   const joinQueue = async () => {
     if (!user) { onShowAuth(); return; }
     if (!selectedDeck) { setError('Selecione um baralho.'); return; }
@@ -189,6 +234,7 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
       .eq('status', 'waiting')
       .is('player2_id', null)
       .neq('player1_id', user.id)
+      .gte('created_at', staleWaitingCutoff())
       .order('created_at', { ascending: true })
       .limit(1)
       .maybeSingle();
@@ -215,6 +261,7 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
         player2_deck_id: null,
         player1_ready: true,
         status: 'waiting',
+        player1_last_seen: new Date().toISOString(),
       })
       .select('*')
       .single();
@@ -281,7 +328,7 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
             </div>
           )}
           <button
-            onClick={onBack}
+            onClick={handleBack}
             className="mt-4 text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1 mx-auto"
           >
             <ArrowLeft className="w-3 h-3" />
@@ -296,7 +343,7 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
       {/* Header */}
       <div className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between">
-        <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm">
+        <button onClick={handleBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm">
           <ArrowLeft className="w-4 h-4" />
           Voltar
         </button>

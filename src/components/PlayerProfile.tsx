@@ -40,6 +40,13 @@ function resultClass(result: PlayerMatchResult['result']) {
   return 'text-slate-300 bg-slate-800/70 border-slate-600/30';
 }
 
+function finishReasonLabel(reason: PlayerMatchResult['finish_reason']) {
+  if (reason === 'surrender') return 'desistencia';
+  if (reason === 'inactivity') return 'inatividade';
+  if (reason === 'disconnect') return 'desconexao';
+  return 'normal';
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',
@@ -367,7 +374,7 @@ export default function PlayerProfile({ onBack, onShowAuth }: PlayerProfileProps
                       {match.mode === 'pvp' ? `PvP contra ${match.opponent_name ?? 'Jogador'}` : 'Partida contra IA'}
                     </p>
                     <p className="text-xs text-slate-500">
-                      {getCardById(match.hero_id ?? '')?.name ?? 'Heroi'} • {match.turns ?? '-'} turnos • {formatDate(match.created_at)}
+                      {getCardById(match.hero_id ?? '')?.name ?? 'Heroi'} • {match.turns ?? '-'} turnos • {finishReasonLabel(match.finish_reason)} • {formatDate(match.created_at)}
                     </p>
                   </div>
                   {match.mode === 'pvp' && (
