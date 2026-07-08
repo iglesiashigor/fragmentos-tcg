@@ -5,7 +5,7 @@ import { getCardById } from './data/cards';
 import { getSavedDecks } from './data/defaultDecks';
 import { AuthProvider, useAuth } from './lib/authContext';
 import { useDecks } from './hooks/useDecks';
-import MainMenu from './components/MainMenu';
+import MainMenu from './components/MainMenuLobby';
 import DeckBuilder from './components/DeckBuilder';
 import CollectionViewer from './components/CollectionViewer';
 import GameBoard, { BoardCosmetics } from './components/GameBoard';
@@ -45,7 +45,7 @@ function AppContent() {
     }
 
     let mounted = true;
-    void fetchPlayerProgress(user.id).then(result => {
+    void fetchPlayerProgress(user.id, user.email).then(result => {
       if (!mounted) return;
       setBoardCosmetics({
         cardFrame: result.data?.equipped_card_frame ?? 'default',
