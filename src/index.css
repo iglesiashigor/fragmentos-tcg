@@ -90,7 +90,6 @@ body {
 
 .card-cosmetic-amber {
   border-color: var(--cosmetic-border, rgba(251, 191, 36, 0.95)) !important;
-  background-image: var(--cosmetic-bg, linear-gradient(145deg, #92400e 0%, #b45309 45%, #451a03 100%)) !important;
   box-shadow:
     0 0 0 1px var(--cosmetic-ring, rgba(251, 191, 36, 0.65)),
     0 0 18px var(--cosmetic-glow, rgba(251, 191, 36, 0.22)),
@@ -99,7 +98,6 @@ body {
 
 .card-cosmetic-sapphire {
   border-color: var(--cosmetic-border, rgba(96, 165, 250, 0.95)) !important;
-  background-image: var(--cosmetic-bg, linear-gradient(145deg, #1d4ed8 0%, #1e40af 45%, #0f172a 100%)) !important;
   box-shadow:
     0 0 0 1px var(--cosmetic-ring, rgba(96, 165, 250, 0.7)),
     0 0 18px var(--cosmetic-glow, rgba(59, 130, 246, 0.26)),
@@ -108,7 +106,6 @@ body {
 
 .card-cosmetic-ruby {
   border-color: var(--cosmetic-border, rgba(248, 113, 113, 0.95)) !important;
-  background-image: var(--cosmetic-bg, linear-gradient(145deg, #991b1b 0%, #be123c 45%, #450a0a 100%)) !important;
   box-shadow:
     0 0 0 1px var(--cosmetic-ring, rgba(248, 113, 113, 0.75)),
     0 0 18px var(--cosmetic-glow, rgba(225, 29, 72, 0.26)),
@@ -117,7 +114,6 @@ body {
 
 .card-cosmetic-emerald {
   border-color: var(--cosmetic-border, rgba(52, 211, 153, 0.95)) !important;
-  background-image: var(--cosmetic-bg, linear-gradient(145deg, #047857 0%, #059669 45%, #022c22 100%)) !important;
   box-shadow:
     0 0 0 1px var(--cosmetic-ring, rgba(52, 211, 153, 0.75)),
     0 0 18px var(--cosmetic-glow, rgba(16, 185, 129, 0.26)),
