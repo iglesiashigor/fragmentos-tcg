@@ -302,7 +302,39 @@ export function defaultPlayerProgress(playerId: string): PlayerProgress {
   };
 }
 
-export async function fetchPlayerProgress(playerId: string) {
+export function isLocalTestAccount(email?: string | null) {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+  return isLocalHost && email?.trim().toLowerCase() === 'teste@teste.com.br';
+}
+
+export function localTestPlayerProgress(playerId: string): PlayerProgress {
+  return {
+    player_id: playerId,
+    level: 50,
+    xp: 0,
+    total_xp: 20000,
+    gold: 999999,
+    daily_mission_date: getTodayKey(),
+    mission_progress: Object.fromEntries(DAILY_MISSIONS.map(mission => [mission.id, mission.target])),
+    completed_daily_missions: DAILY_MISSIONS.map(mission => mission.id),
+    supporter: true,
+    equipped_profile_frame: 'sapphire',
+    unlocked_profile_frames: PROFILE_FRAMES.map(frame => frame.id),
+    equipped_card_frame: 'default',
+    unlocked_card_frames: CARD_FRAMES.map(frame => frame.id),
+    equipped_playmat: 'default',
+    unlocked_playmats: PLAYMATS.map(playmat => playmat.id),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+export async function fetchPlayerProgress(playerId: string, email?: string | null) {
+  if (isLocalTestAccount(email)) {
+    return { data: localTestPlayerProgress(playerId), error: null };
+  }
+
   const { data, error } = await supabase
     .from('player_progress')
     .select('*')
@@ -312,8 +344,19 @@ export async function fetchPlayerProgress(playerId: string) {
   return { data: data as PlayerProgress | null, error: error?.message ?? null };
 }
 
-export async function equipProfileFrame(playerId: string, frameId: string) {
-  const { data: current, error: fetchError } = await fetchPlayerProgress(playerId);
+export async function equipProfileFrame(playerId: string, frameId: string, email?: string | null) {
+  if (isLocalTestAccount(email)) {
+    return {
+      error: null,
+      progress: {
+        ...localTestPlayerProgress(playerId),
+        equipped_profile_frame: frameId,
+        updated_at: new Date().toISOString(),
+      },
+    };
+  }
+
+  const { data: current, error: fetchError } = await fetchPlayerProgress(playerId, email);
   if (fetchError) return { error: fetchError };
 
   const unlockedFrames = current?.unlocked_profile_frames ?? ['default'];
@@ -341,8 +384,19 @@ export async function equipProfileFrame(playerId: string, frameId: string) {
   return { error: error?.message ?? null };
 }
 
-export async function equipCardFrame(playerId: string, frameId: string) {
-  const { data: current, error: fetchError } = await fetchPlayerProgress(playerId);
+export async function equipCardFrame(playerId: string, frameId: string, email?: string | null) {
+  if (isLocalTestAccount(email)) {
+    return {
+      error: null,
+      progress: {
+        ...localTestPlayerProgress(playerId),
+        equipped_card_frame: frameId,
+        updated_at: new Date().toISOString(),
+      },
+    };
+  }
+
+  const { data: current, error: fetchError } = await fetchPlayerProgress(playerId, email);
   if (fetchError) return { error: fetchError };
 
   const progress = current ?? defaultPlayerProgress(playerId);
@@ -361,8 +415,19 @@ export async function equipCardFrame(playerId: string, frameId: string) {
   return { error: error?.message ?? null };
 }
 
-export async function equipPlaymat(playerId: string, playmatId: string) {
-  const { data: current, error: fetchError } = await fetchPlayerProgress(playerId);
+export async function equipPlaymat(playerId: string, playmatId: string, email?: string | null) {
+  if (isLocalTestAccount(email)) {
+    return {
+      error: null,
+      progress: {
+        ...localTestPlayerProgress(playerId),
+        equipped_playmat: playmatId,
+        updated_at: new Date().toISOString(),
+      },
+    };
+  }
+
+  const { data: current, error: fetchError } = await fetchPlayerProgress(playerId, email);
   if (fetchError) return { error: fetchError };
 
   const progress = current ?? defaultPlayerProgress(playerId);
@@ -381,8 +446,18 @@ export async function equipPlaymat(playerId: string, playmatId: string) {
   return { error: error?.message ?? null };
 }
 
-export async function purchaseShopItem(playerId: string, item: ShopItem) {
-  const { data: current, error: fetchError } = await fetchPlayerProgress(playerId);
+export async function purchaseShopItem(playerId: string, item: ShopItem, email?: string | null) {
+  if (isLocalTestAccount(email)) {
+    return {
+      error: null,
+      progress: {
+        ...localTestPlayerProgress(playerId),
+        updated_at: new Date().toISOString(),
+      },
+    };
+  }
+
+  const { data: current, error: fetchError } = await fetchPlayerProgress(playerId, email);
   if (fetchError) return { error: fetchError };
 
   const progress = current ?? defaultPlayerProgress(playerId);
