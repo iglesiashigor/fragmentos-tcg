@@ -109,68 +109,96 @@ body {
 .tier-strong { border-bottom: 2px solid #a78bfa; }
 
 .card-cosmetic-amber {
-  border-color: rgba(251, 191, 36, 0.95) !important;
-  background-image: linear-gradient(145deg, #92400e 0%, #b45309 45%, #451a03 100%) !important;
+  border-color: var(--cosmetic-border, rgba(251, 191, 36, 0.95)) !important;
+  background-image: var(--cosmetic-bg, linear-gradient(145deg, #92400e 0%, #b45309 45%, #451a03 100%)) !important;
   box-shadow:
-    0 0 0 1px rgba(251, 191, 36, 0.65),
-    0 0 18px rgba(251, 191, 36, 0.22),
+    0 0 0 1px var(--cosmetic-ring, rgba(251, 191, 36, 0.65)),
+    0 0 18px var(--cosmetic-glow, rgba(251, 191, 36, 0.22)),
     0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
 .card-cosmetic-sapphire {
-  border-color: rgba(96, 165, 250, 0.95) !important;
-  background-image: linear-gradient(145deg, #1d4ed8 0%, #1e40af 45%, #0f172a 100%) !important;
+  border-color: var(--cosmetic-border, rgba(96, 165, 250, 0.95)) !important;
+  background-image: var(--cosmetic-bg, linear-gradient(145deg, #1d4ed8 0%, #1e40af 45%, #0f172a 100%)) !important;
   box-shadow:
-    0 0 0 1px rgba(96, 165, 250, 0.7),
-    0 0 18px rgba(59, 130, 246, 0.26),
+    0 0 0 1px var(--cosmetic-ring, rgba(96, 165, 250, 0.7)),
+    0 0 18px var(--cosmetic-glow, rgba(59, 130, 246, 0.26)),
     0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
 .card-cosmetic-ruby {
-  border-color: rgba(248, 113, 113, 0.95) !important;
-  background-image: linear-gradient(145deg, #991b1b 0%, #be123c 45%, #450a0a 100%) !important;
+  border-color: var(--cosmetic-border, rgba(248, 113, 113, 0.95)) !important;
+  background-image: var(--cosmetic-bg, linear-gradient(145deg, #991b1b 0%, #be123c 45%, #450a0a 100%)) !important;
   box-shadow:
-    0 0 0 1px rgba(248, 113, 113, 0.75),
-    0 0 18px rgba(225, 29, 72, 0.26),
+    0 0 0 1px var(--cosmetic-ring, rgba(248, 113, 113, 0.75)),
+    0 0 18px var(--cosmetic-glow, rgba(225, 29, 72, 0.26)),
     0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
 .card-cosmetic-emerald {
-  border-color: rgba(52, 211, 153, 0.95) !important;
-  background-image: linear-gradient(145deg, #047857 0%, #059669 45%, #022c22 100%) !important;
+  border-color: var(--cosmetic-border, rgba(52, 211, 153, 0.95)) !important;
+  background-image: var(--cosmetic-bg, linear-gradient(145deg, #047857 0%, #059669 45%, #022c22 100%)) !important;
   box-shadow:
-    0 0 0 1px rgba(52, 211, 153, 0.75),
-    0 0 18px rgba(16, 185, 129, 0.26),
+    0 0 0 1px var(--cosmetic-ring, rgba(52, 211, 153, 0.75)),
+    0 0 18px var(--cosmetic-glow, rgba(16, 185, 129, 0.26)),
     0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
 .card-cosmetic-tint-amber {
-  background:
+  background: var(--cosmetic-tint,
     linear-gradient(180deg, rgba(251, 191, 36, 0.2), rgba(120, 53, 15, 0.28)),
-    radial-gradient(circle at 50% 12%, rgba(253, 230, 138, 0.2), transparent 45%);
+    radial-gradient(circle at 50% 12%, rgba(253, 230, 138, 0.2), transparent 45%));
   mix-blend-mode: color;
 }
 
 .card-cosmetic-tint-sapphire {
-  background:
+  background: var(--cosmetic-tint,
     linear-gradient(180deg, rgba(96, 165, 250, 0.2), rgba(30, 64, 175, 0.3)),
-    radial-gradient(circle at 50% 12%, rgba(191, 219, 254, 0.18), transparent 45%);
+    radial-gradient(circle at 50% 12%, rgba(191, 219, 254, 0.18), transparent 45%));
   mix-blend-mode: color;
 }
 
 .card-cosmetic-tint-ruby {
-  background:
+  background: var(--cosmetic-tint,
     linear-gradient(180deg, rgba(248, 113, 113, 0.22), rgba(136, 19, 55, 0.32)),
-    radial-gradient(circle at 50% 12%, rgba(254, 202, 202, 0.16), transparent 45%);
+    radial-gradient(circle at 50% 12%, rgba(254, 202, 202, 0.16), transparent 45%));
   mix-blend-mode: color;
 }
 
 .card-cosmetic-tint-emerald {
-  background:
+  background: var(--cosmetic-tint,
     linear-gradient(180deg, rgba(52, 211, 153, 0.2), rgba(6, 95, 70, 0.32)),
-    radial-gradient(circle at 50% 12%, rgba(167, 243, 208, 0.16), transparent 45%);
+    radial-gradient(circle at 50% 12%, rgba(167, 243, 208, 0.16), transparent 45%));
   mix-blend-mode: color;
 }
+
+.card-cosmetic-amber-hero { --cosmetic-bg: linear-gradient(145deg, #b45309 0%, #d97706 45%, #78350f 100%); --cosmetic-border: rgba(251, 191, 36, 0.98); --cosmetic-ring: rgba(251, 191, 36, 0.72); --cosmetic-glow: rgba(251, 191, 36, 0.28); --cosmetic-tint: linear-gradient(180deg, rgba(253, 230, 138, 0.16), rgba(146, 64, 14, 0.3)); }
+.card-cosmetic-amber-unit { --cosmetic-bg: linear-gradient(145deg, #78350f 0%, #92400e 50%, #451a03 100%); --cosmetic-border: rgba(245, 158, 11, 0.92); --cosmetic-ring: rgba(245, 158, 11, 0.6); --cosmetic-glow: rgba(245, 158, 11, 0.2); --cosmetic-tint: linear-gradient(180deg, rgba(245, 158, 11, 0.14), rgba(69, 26, 3, 0.32)); }
+.card-cosmetic-amber-spell { --cosmetic-bg: linear-gradient(145deg, #854d0e 0%, #ca8a04 48%, #422006 100%); --cosmetic-border: rgba(253, 224, 71, 0.95); --cosmetic-ring: rgba(250, 204, 21, 0.66); --cosmetic-glow: rgba(250, 204, 21, 0.24); --cosmetic-tint: linear-gradient(180deg, rgba(253, 224, 71, 0.18), rgba(113, 63, 18, 0.3)); }
+.card-cosmetic-amber-terrain { --cosmetic-bg: linear-gradient(145deg, #365314 0%, #a16207 45%, #422006 100%); --cosmetic-border: rgba(217, 119, 6, 0.94); --cosmetic-ring: rgba(217, 119, 6, 0.58); --cosmetic-glow: rgba(217, 119, 6, 0.2); --cosmetic-tint: linear-gradient(180deg, rgba(202, 138, 4, 0.15), rgba(63, 98, 18, 0.28)); }
+.card-cosmetic-amber-equipment { --cosmetic-bg: linear-gradient(145deg, #57534e 0%, #a16207 46%, #292524 100%); --cosmetic-border: rgba(214, 211, 209, 0.9); --cosmetic-ring: rgba(214, 211, 209, 0.46); --cosmetic-glow: rgba(245, 158, 11, 0.19); --cosmetic-tint: linear-gradient(180deg, rgba(245, 158, 11, 0.12), rgba(41, 37, 36, 0.3)); }
+.card-cosmetic-amber-mount { --cosmetic-bg: linear-gradient(145deg, #134e4a 0%, #b45309 48%, #042f2e 100%); --cosmetic-border: rgba(251, 191, 36, 0.9); --cosmetic-ring: rgba(251, 191, 36, 0.54); --cosmetic-glow: rgba(20, 184, 166, 0.19); --cosmetic-tint: linear-gradient(180deg, rgba(251, 191, 36, 0.14), rgba(15, 118, 110, 0.22)); }
+
+.card-cosmetic-sapphire-hero { --cosmetic-bg: linear-gradient(145deg, #1e3a8a 0%, #2563eb 45%, #172554 100%); --cosmetic-border: rgba(147, 197, 253, 0.98); --cosmetic-ring: rgba(96, 165, 250, 0.72); --cosmetic-glow: rgba(59, 130, 246, 0.28); --cosmetic-tint: linear-gradient(180deg, rgba(191, 219, 254, 0.16), rgba(30, 64, 175, 0.3)); }
+.card-cosmetic-sapphire-unit { --cosmetic-bg: linear-gradient(145deg, #1e293b 0%, #1d4ed8 50%, #0f172a 100%); --cosmetic-border: rgba(96, 165, 250, 0.92); --cosmetic-ring: rgba(96, 165, 250, 0.6); --cosmetic-glow: rgba(59, 130, 246, 0.21); --cosmetic-tint: linear-gradient(180deg, rgba(96, 165, 250, 0.14), rgba(15, 23, 42, 0.32)); }
+.card-cosmetic-sapphire-spell { --cosmetic-bg: linear-gradient(145deg, #312e81 0%, #3b82f6 48%, #1e1b4b 100%); --cosmetic-border: rgba(125, 211, 252, 0.95); --cosmetic-ring: rgba(125, 211, 252, 0.66); --cosmetic-glow: rgba(96, 165, 250, 0.24); --cosmetic-tint: linear-gradient(180deg, rgba(125, 211, 252, 0.18), rgba(49, 46, 129, 0.3)); }
+.card-cosmetic-sapphire-terrain { --cosmetic-bg: linear-gradient(145deg, #164e63 0%, #2563eb 45%, #042f2e 100%); --cosmetic-border: rgba(56, 189, 248, 0.94); --cosmetic-ring: rgba(56, 189, 248, 0.58); --cosmetic-glow: rgba(14, 165, 233, 0.2); --cosmetic-tint: linear-gradient(180deg, rgba(56, 189, 248, 0.15), rgba(20, 83, 45, 0.25)); }
+.card-cosmetic-sapphire-equipment { --cosmetic-bg: linear-gradient(145deg, #334155 0%, #1d4ed8 46%, #111827 100%); --cosmetic-border: rgba(203, 213, 225, 0.9); --cosmetic-ring: rgba(203, 213, 225, 0.46); --cosmetic-glow: rgba(59, 130, 246, 0.19); --cosmetic-tint: linear-gradient(180deg, rgba(96, 165, 250, 0.12), rgba(15, 23, 42, 0.3)); }
+.card-cosmetic-sapphire-mount { --cosmetic-bg: linear-gradient(145deg, #155e75 0%, #2563eb 48%, #164e63 100%); --cosmetic-border: rgba(103, 232, 249, 0.9); --cosmetic-ring: rgba(103, 232, 249, 0.54); --cosmetic-glow: rgba(59, 130, 246, 0.19); --cosmetic-tint: linear-gradient(180deg, rgba(103, 232, 249, 0.14), rgba(30, 64, 175, 0.25)); }
+
+.card-cosmetic-ruby-hero { --cosmetic-bg: linear-gradient(145deg, #991b1b 0%, #e11d48 45%, #450a0a 100%); --cosmetic-border: rgba(254, 202, 202, 0.98); --cosmetic-ring: rgba(248, 113, 113, 0.72); --cosmetic-glow: rgba(225, 29, 72, 0.28); --cosmetic-tint: linear-gradient(180deg, rgba(254, 202, 202, 0.16), rgba(159, 18, 57, 0.32)); }
+.card-cosmetic-ruby-unit { --cosmetic-bg: linear-gradient(145deg, #450a0a 0%, #991b1b 50%, #1c0a0a 100%); --cosmetic-border: rgba(248, 113, 113, 0.92); --cosmetic-ring: rgba(248, 113, 113, 0.6); --cosmetic-glow: rgba(225, 29, 72, 0.21); --cosmetic-tint: linear-gradient(180deg, rgba(248, 113, 113, 0.14), rgba(69, 10, 10, 0.34)); }
+.card-cosmetic-ruby-spell { --cosmetic-bg: linear-gradient(145deg, #831843 0%, #db2777 48%, #4a044e 100%); --cosmetic-border: rgba(251, 113, 133, 0.95); --cosmetic-ring: rgba(251, 113, 133, 0.66); --cosmetic-glow: rgba(219, 39, 119, 0.24); --cosmetic-tint: linear-gradient(180deg, rgba(251, 113, 133, 0.18), rgba(112, 26, 117, 0.3)); }
+.card-cosmetic-ruby-terrain { --cosmetic-bg: linear-gradient(145deg, #7f1d1d 0%, #be123c 45%, #3f6212 100%); --cosmetic-border: rgba(244, 63, 94, 0.94); --cosmetic-ring: rgba(244, 63, 94, 0.58); --cosmetic-glow: rgba(225, 29, 72, 0.2); --cosmetic-tint: linear-gradient(180deg, rgba(244, 63, 94, 0.15), rgba(63, 98, 18, 0.24)); }
+.card-cosmetic-ruby-equipment { --cosmetic-bg: linear-gradient(145deg, #44403c 0%, #be123c 46%, #1c1917 100%); --cosmetic-border: rgba(214, 211, 209, 0.9); --cosmetic-ring: rgba(214, 211, 209, 0.46); --cosmetic-glow: rgba(225, 29, 72, 0.19); --cosmetic-tint: linear-gradient(180deg, rgba(244, 63, 94, 0.12), rgba(28, 25, 23, 0.3)); }
+.card-cosmetic-ruby-mount { --cosmetic-bg: linear-gradient(145deg, #134e4a 0%, #be123c 48%, #042f2e 100%); --cosmetic-border: rgba(251, 113, 133, 0.9); --cosmetic-ring: rgba(251, 113, 133, 0.54); --cosmetic-glow: rgba(20, 184, 166, 0.18); --cosmetic-tint: linear-gradient(180deg, rgba(251, 113, 133, 0.14), rgba(15, 118, 110, 0.22)); }
+
+.card-cosmetic-emerald-hero { --cosmetic-bg: linear-gradient(145deg, #065f46 0%, #10b981 45%, #022c22 100%); --cosmetic-border: rgba(167, 243, 208, 0.98); --cosmetic-ring: rgba(52, 211, 153, 0.72); --cosmetic-glow: rgba(16, 185, 129, 0.28); --cosmetic-tint: linear-gradient(180deg, rgba(167, 243, 208, 0.16), rgba(6, 95, 70, 0.3)); }
+.card-cosmetic-emerald-unit { --cosmetic-bg: linear-gradient(145deg, #022c22 0%, #047857 50%, #052e16 100%); --cosmetic-border: rgba(52, 211, 153, 0.92); --cosmetic-ring: rgba(52, 211, 153, 0.6); --cosmetic-glow: rgba(16, 185, 129, 0.21); --cosmetic-tint: linear-gradient(180deg, rgba(52, 211, 153, 0.14), rgba(2, 44, 34, 0.33)); }
+.card-cosmetic-emerald-spell { --cosmetic-bg: linear-gradient(145deg, #064e3b 0%, #14b8a6 48%, #083344 100%); --cosmetic-border: rgba(94, 234, 212, 0.95); --cosmetic-ring: rgba(94, 234, 212, 0.66); --cosmetic-glow: rgba(45, 212, 191, 0.24); --cosmetic-tint: linear-gradient(180deg, rgba(94, 234, 212, 0.18), rgba(6, 78, 59, 0.3)); }
+.card-cosmetic-emerald-terrain { --cosmetic-bg: linear-gradient(145deg, #14532d 0%, #16a34a 45%, #022c22 100%); --cosmetic-border: rgba(134, 239, 172, 0.94); --cosmetic-ring: rgba(134, 239, 172, 0.58); --cosmetic-glow: rgba(34, 197, 94, 0.2); --cosmetic-tint: linear-gradient(180deg, rgba(134, 239, 172, 0.16), rgba(20, 83, 45, 0.3)); }
+.card-cosmetic-emerald-equipment { --cosmetic-bg: linear-gradient(145deg, #334155 0%, #047857 46%, #111827 100%); --cosmetic-border: rgba(203, 213, 225, 0.9); --cosmetic-ring: rgba(203, 213, 225, 0.46); --cosmetic-glow: rgba(16, 185, 129, 0.19); --cosmetic-tint: linear-gradient(180deg, rgba(52, 211, 153, 0.12), rgba(17, 24, 39, 0.3)); }
+.card-cosmetic-emerald-mount { --cosmetic-bg: linear-gradient(145deg, #115e59 0%, #059669 48%, #042f2e 100%); --cosmetic-border: rgba(94, 234, 212, 0.9); --cosmetic-ring: rgba(94, 234, 212, 0.54); --cosmetic-glow: rgba(20, 184, 166, 0.19); --cosmetic-tint: linear-gradient(180deg, rgba(94, 234, 212, 0.14), rgba(5, 150, 105, 0.25)); }
 
 .playmat-default {
   background:
