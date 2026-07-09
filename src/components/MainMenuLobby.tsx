@@ -325,7 +325,7 @@ export default function MainMenuLobby({
             </div>
 
             <div className="p-5 space-y-5">
-              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -353,33 +353,34 @@ export default function MainMenuLobby({
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 flex flex-col justify-between gap-4">
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
                   {gameMode === 'ai' ? (
-                    <>
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)_220px] lg:items-end">
                       <div>
-                        <p className="text-xs text-slate-500 font-bold uppercase">Oponente</p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <Shield className="w-4 h-4 text-red-300" />
-                          <span className="text-sm font-bold text-white">Baralho da IA</span>
-                        </div>
-                        <div className="mt-3 rounded-xl border border-red-900/40 bg-red-950/20 p-3">
+                        <p className="text-xs text-slate-500 font-bold uppercase">Baralho do oponente</p>
+                        <div className="mt-2 rounded-xl border border-red-900/40 bg-red-950/20 p-3">
                           <div className="flex items-center gap-3">
                             <div className="w-12 h-14 rounded-lg bg-gradient-to-br from-red-800 to-slate-950 border border-red-500/40 flex items-center justify-center shrink-0">
                               <Shield className="w-5 h-5 text-red-300" />
                             </div>
                             <div className="min-w-0">
-                              <div className="text-sm font-black text-white truncate">{selectedAiDeck?.name ?? 'IA'}</div>
-                              <div className="text-xs text-slate-400 truncate">{selectedAiHero?.name ?? 'Heroi'}</div>
+                              <div className="text-base font-black text-white truncate">{selectedAiDeck?.name ?? 'IA'}</div>
+                              <div className="text-xs text-slate-400 truncate">{selectedAiHero?.name ?? 'Heroi'} como lider</div>
                               <div className="text-[11px] text-slate-500 mt-1">
                                 {(selectedAiDeck?.coreCards.length ?? 0) + (selectedAiDeck?.neutralCards.length ?? 0)} cartas
                               </div>
                             </div>
                           </div>
                         </div>
+                      </div>
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-bold uppercase text-slate-500">
+                          Escolha o baralho da IA
+                        </span>
                         <select
                           value={selectedAIDeck ?? ''}
                           onChange={event => setSelectedAIDeck(event.target.value)}
-                          className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-red-400"
+                          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-sm font-bold text-white outline-none focus:border-red-400"
                         >
                           {displayDecks.map(deck => {
                             const hero = getCardById(deck.heroId);
@@ -390,15 +391,15 @@ export default function MainMenuLobby({
                             );
                           })}
                         </select>
-                      </div>
+                      </label>
                       <button onClick={handleStartGame} disabled={decksLoading} className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-60 disabled:cursor-wait text-slate-950 px-4 py-3 font-black transition-colors shadow-lg shadow-amber-950/30">
                         <Swords className="w-5 h-5" />
                         Jogar agora
                         <ChevronRight className="w-4 h-4" />
                       </button>
-                    </>
+                    </div>
                   ) : (
-                    <>
+                    <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                       <div>
                         <p className="text-xs text-slate-500 font-bold uppercase">Online</p>
                         <div className="mt-2 flex items-center gap-2">
@@ -411,7 +412,7 @@ export default function MainMenuLobby({
                         <Globe className="w-5 h-5" />
                         Buscar partida
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
