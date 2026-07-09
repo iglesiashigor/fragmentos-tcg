@@ -2060,9 +2060,18 @@ export function activateAbility(
         };
         return s;
       } else {
-        const target = s.players[playerIdx].units.find(
-          (u) => u.instanceId !== unitInstanceId,
-        );
+        const target = [...s.players[playerIdx].units]
+          .filter(
+            (u) =>
+              u.instanceId !== unitInstanceId &&
+              u.currentHealth < u.maxHealth,
+          )
+          .sort(
+            (a, b) =>
+              b.maxHealth -
+              b.currentHealth -
+              (a.maxHealth - a.currentHealth),
+          )[0];
         if (target)
           s = healTarget(s, target.instanceId, eff.value ?? 0, playerIdx);
       }
@@ -2095,9 +2104,10 @@ export function activateAbility(
         return s;
       } else {
         const target =
-          s.players[playerIdx].units.find(
-            (u) => u.instanceId !== unitInstanceId,
-          ) ?? s.players[playerIdx].units[unitIdx];
+          [...s.players[playerIdx].units]
+            .filter((u) => u.instanceId !== unitInstanceId)
+            .sort((a, b) => b.currentAttack - a.currentAttack)[0] ??
+          s.players[playerIdx].units[unitIdx];
         if (target) {
           const p = s.players[playerIdx];
           const newUnits = p.units.map((u) =>
