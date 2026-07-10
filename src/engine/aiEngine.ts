@@ -182,8 +182,10 @@ function scoreSpell(state: GameState, spell: CardDefinition, followUp: boolean):
       score += player.discard.filter(card => !effect.cardType || card.type === effect.cardType).length * 6;
     } else if (effect.type === 'destroyTerrain') {
       score += opponent.terrain ? 15 : 0;
-    } else if (effect.type === 'attackAgain' || effect.type === 'allUnitsAttackTwice') {
+    } else if (effect.type === 'attackAgain') {
       score += getAllies(state).filter(card => card.exhausted).reduce((total, card) => total + getEffectiveAttack(card), 0) * 3;
+    } else if (effect.type === 'allUnitsAttackTwice') {
+      score += player.units.filter(card => card.exhausted).reduce((total, card) => total + getEffectiveAttack(card), 0) * 3;
     } else if (effect.type === 'bonusAttackPerDamageTaken') {
       score += Math.max(...getAllies(state).map(missingHealth), 0) * 3;
     } else if (effect.type === 'removeCondition' || effect.type === 'removeAllNegativeConditions') {
@@ -233,8 +235,11 @@ function canUseSpell(state: GameState, spell: CardDefinition, followUp: boolean)
     if (effect.type === 'removeCondition' || effect.type === 'removeAllNegativeConditions') {
       return getAllies(state).some(hasNegativeCondition);
     }
-    if (effect.type === 'attackAgain' || effect.type === 'allUnitsAttackTwice') {
+    if (effect.type === 'attackAgain') {
       return followUp && getAllies(state).some(card => card.exhausted && getEffectiveAttack(card) > 0);
+    }
+    if (effect.type === 'allUnitsAttackTwice') {
+      return followUp && player.units.some(card => card.exhausted && getEffectiveAttack(card) > 0);
     }
     if (effect.type === 'bonusAttackPerDamageTaken') {
       return getAllies(state).some(ally => missingHealth(ally) > 0);
@@ -246,15 +251,13 @@ function canUseSpell(state: GameState, spell: CardDefinition, followUp: boolean)
 
 function getBestDamageTarget(state: GameState, damage: number): BattleCard | undefined {
   const opponent = state.players[HUMAN_PLAYER];
-  const heroDurability = opponent.hero.currentHealth + opponent.hero.currentDefense;
-  if (damage >= heroDurability) return opponent.hero;
-
   const units = [...opponent.units].sort((a, b) => {
     const aLethal = a.currentHealth + a.currentDefense <= damage ? 1 : 0;
     const bLethal = b.currentHealth + b.currentDefense <= damage ? 1 : 0;
     if (aLethal !== bLethal) return bLethal - aLethal;
     return combatValue(b) - combatValue(a);
   });
+
   return units[0] ?? opponent.hero;
 }
 

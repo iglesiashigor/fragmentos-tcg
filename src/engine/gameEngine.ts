@@ -1133,7 +1133,6 @@ export function resolveSpellEffects(
       newPlayers[playerIdx] = {
         ...p,
         units: newUnits,
-        hero: { ...p.hero, exhausted: false },
       };
       s = {
         ...s,
