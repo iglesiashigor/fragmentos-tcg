@@ -13,6 +13,8 @@ import {
 } from "../types/game";
 import { getCardById } from "../data/cards";
 
+const MAX_MANA = 10;
+
 let instanceCounter = 0;
 function newInstanceId() {
   return `inst-${++instanceCounter}-${Math.random().toString(36).slice(2, 7)}`;
@@ -652,9 +654,10 @@ export function startTurn(state: GameState): GameState {
   s = { ...s, players: newPlayers };
 
   // Gain mana
-  const newMaxMana = Math.min(12, s.players[pi].maxMana + 1);
-  const itemManaBonus = getStartOfTurnManaBonus(s.players[pi]);
-  const newMana = newMaxMana + itemManaBonus;
+  const newMaxMana = Math.min(MAX_MANA, s.players[pi].maxMana + 1);
+  const rawItemManaBonus = getStartOfTurnManaBonus(s.players[pi]);
+  const itemManaBonus = Math.min(rawItemManaBonus, Math.max(0, MAX_MANA - newMaxMana));
+  const newMana = Math.min(MAX_MANA, newMaxMana + itemManaBonus);
   const mp2 = [...s.players] as [PlayerState, PlayerState];
   mp2[pi] = {
     ...s.players[pi],
