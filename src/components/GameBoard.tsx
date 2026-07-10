@@ -281,7 +281,12 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const handleDeclareAttackPhase = () => {
     if (blockIfLocked()) return;
     if (!isPlayerTurn || gameState.gameOver) return;
-    setGameState(s => ({ ...s, phase: 'attack' }));
+    const nextState = {
+      ...gameState,
+      phase: 'attack' as const,
+      stateVersion: isPvP ? (gameState.stateVersion ?? 0) + 1 : gameState.stateVersion,
+    };
+    commitGameState(nextState, true);
     setSelectionMode('selectAttacker');
     setSelectedAttackers([]);
     setValidTargets([]);
