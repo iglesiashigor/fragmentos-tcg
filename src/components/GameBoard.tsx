@@ -419,7 +419,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       if (e.type === 'removeCondition') return !allies.some(hasNegativeCondition);
       if (e.type === 'removeAllNegativeConditions') return !allies.some(hasNegativeCondition);
       if (e.type === 'attackAgain') return !allies.some(hasUsedAttack);
-      if (e.type === 'allUnitsAttackTwice') return !allies.some(hasUsedAttack);
+      if (e.type === 'allUnitsAttackTwice') return !player.units.some(hasUsedAttack);
       if (e.type === 'bonusAttackPerDamageTaken') return !allies.some(isDamaged);
       return false;
     });
@@ -1387,13 +1387,18 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
               <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Mão ({player.hand.length})</span>
             </div>
             <div className="flex gap-2 flex-wrap justify-center min-h-36">
-              {player.hand.map((card, i) => (
+              {player.hand.map((card, i) => {
+                const canUseCardNow = isPlayerTurn && !gameState.gameOver && player.mana >= card.manaCost && (
+                  isMainPhase || (isAttackPhase && card.type === 'spell' && hasExtraAttackEffect(card))
+                );
+
+                return (
                 <div key={i} className="relative">
                   <CardDisplay
                     card={card}
                     size="sm"
                     cosmeticFrame={playerCardFrame}
-                    isValidTarget={isPlayerTurn && isMainPhase && !gameState.gameOver && player.mana >= card.manaCost}
+                    isValidTarget={canUseCardNow}
                     onClick={() => handleCardFromHand(card)}
                   />
                   <button
@@ -1403,7 +1408,8 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                     <Eye className="w-3 h-3 text-slate-300" />
                   </button>
                 </div>
-              ))}
+                );
+              })}
               {player.hand.length === 0 && <p className="text-slate-600 text-sm italic py-2">Sem cartas na mão</p>}
             </div>
           </div>
