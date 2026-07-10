@@ -14,7 +14,7 @@ import CoinFlip from './components/CoinFlip';
 import AuthModal from './components/AuthModal';
 import MatchmakingScreen from './components/MatchmakingScreen';
 import PvPGameBoard from './components/PvPGameBoard';
-import PlayerProfile from './components/PlayerProfile';
+import PlayerProfile, { ProfileTab } from './components/PlayerProfile';
 import { savePlayerMatchResult } from './lib/ranking';
 import { fetchPlayerProgress, PlayerProgress, saveMatchProgress } from './lib/progression';
 
@@ -31,6 +31,7 @@ function AppContent() {
   const [showAuth, setShowAuth] = useState(false);
   const [gameMode, setGameMode] = useState<'ai' | 'pvp'>('ai');
   const [roomId, setRoomId] = useState<string | null>(null);
+  const [profileTab, setProfileTab] = useState<ProfileTab>('overview');
   const [boardCosmetics, setBoardCosmetics] = useState<BoardCosmetics>({ cardFrame: 'default', playmat: 'default' });
 
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
@@ -144,6 +145,11 @@ function AppContent() {
     setScreen('deckBuilder');
   }, []);
 
+  const handleOpenProfile = useCallback((tab: ProfileTab = 'overview') => {
+    setProfileTab(tab);
+    setScreen('profile');
+  }, []);
+
   const handleSaveDeck = useCallback(async (deck: DeckDefinition) => {
     if (user) {
       const result = await saveDbDeck(deck);
@@ -176,7 +182,7 @@ function AppContent() {
           onStartPvp={handleStartPvp}
           onOpenDeckBuilder={handleOpenDeckBuilder}
           onOpenCollection={() => setScreen('collection')}
-          onOpenProfile={() => setScreen('profile')}
+          onOpenProfile={handleOpenProfile}
           onShowAuth={() => setShowAuth(true)}
           decks={allDecks}
           decksLoading={decksLoading}
@@ -201,6 +207,7 @@ function AppContent() {
           onBack={() => setScreen('menu')}
           onShowAuth={() => setShowAuth(true)}
           onProgressChange={handleProgressChange}
+          initialTab={profileTab}
         />
       )}
       {screen === 'matchmaking' && (
