@@ -99,6 +99,16 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const [surrenderConfirm, setSurrenderConfirm] = useState(false);
   const skipSyncVersion = useRef<number | null>(null);
   const syncedStateVersion = useRef<number | null>(null);
+  const gameStateRef = useRef(gameState);
+  const onGameEndRef = useRef(onGameEnd);
+
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+
+  useEffect(() => {
+    onGameEndRef.current = onGameEnd;
+  }, [onGameEnd]);
 
   // Sync from external state changes (PvP: opponent moves pushed from Supabase)
   useEffect(() => {
@@ -183,24 +193,35 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
 
   useEffect(() => {
     if (gameState.gameOver && gameState.winner !== null) {
-      setTimeout(() => onGameEnd(gameState.winner!, gameState), 500);
+      const timer = setTimeout(() => {
+        const finalState = gameStateRef.current;
+        if (finalState.winner !== null) {
+          onGameEndRef.current(finalState.winner, finalState);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  }, [gameState.gameOver]);
+  }, [gameState.gameOver, gameState.winner]);
 
   // AI turn only for single-player mode (opponent = AI)
   useEffect(() => {
     if (isPvP || gameState.currentPlayer !== oppIdx || gameState.gameOver) return;
     setAiThinking(true);
     const timer = setTimeout(() => {
-      let s = gameState;
+      let s = gameStateRef.current;
       s = runAITurn(s, (intermediate) => {
+        gameStateRef.current = intermediate;
         setGameState({ ...intermediate });
       });
+      gameStateRef.current = s;
       setGameState(s);
       setAiThinking(false);
     }, 1200);
-    return () => clearTimeout(timer);
-  }, [gameState.currentPlayer, gameState.gameOver, isPvP]);
+    return () => {
+      clearTimeout(timer);
+      setAiThinking(false);
+    };
+  }, [gameState.currentPlayer, gameState.gameOver, isPvP, oppIdx]);
 
   // Sync state changes to PvP server
   useEffect(() => {

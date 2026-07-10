@@ -409,13 +409,18 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
     setSavingMove(false);
   }, [roomId]);
 
+  const hasGameState = gameState !== null;
+  const currentTurnPlayer = gameState?.currentPlayer;
+  const currentTurnStartedAt = gameState?.turnStartedAt;
+  const currentStateVersion = gameState?.stateVersion;
+
   useEffect(() => {
-    if (!gameState) return;
-    const startedAt = gameState.turnStartedAt ?? Date.now();
+    if (!hasGameState) return;
+    const startedAt = currentTurnStartedAt ?? Date.now();
     const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
     setSecondsRemaining(Math.max(0, 60 - elapsedSeconds));
     processingTimeoutRef.current = null;
-  }, [gameState?.currentPlayer, gameState?.turnStartedAt, gameState?.stateVersion]);
+  }, [hasGameState, currentTurnPlayer, currentTurnStartedAt, currentStateVersion]);
 
   useEffect(() => {
     if (!gameState || playerNumber === null || gameState.gameOver) return;
