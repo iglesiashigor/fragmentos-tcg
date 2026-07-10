@@ -39,6 +39,10 @@ function AppContent() {
   const allDecks = user ? decks : getSavedDecks();
 
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [screen]);
+
+  useEffect(() => {
     if (!user) {
       setBoardCosmetics({ cardFrame: 'default', playmat: 'default' });
       return;
