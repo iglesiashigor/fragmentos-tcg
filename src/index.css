@@ -44,14 +44,13 @@ body {
   animation: healPulse 0.5s ease-out;
 }
 
-/* Card hover glow */
+/* Card hover feedback */
 .card-glow {
   transition: all 0.2s ease;
 }
 
 .card-glow:hover {
-  filter: brightness(1.1);
-  box-shadow: 0 0 20px rgba(251, 191, 36, 0.2);
+  filter: brightness(1.04);
 }
 
 /* Stat bar styling */
@@ -80,7 +79,7 @@ body {
 .hero-card {
   box-shadow:
     0 0 0 1px rgba(251, 191, 36, 0.3),
-    0 4px 20px rgba(251, 191, 36, 0.15);
+    0 8px 16px rgba(0, 0, 0, 0.28);
 }
 
 /* Unit tier indicators */
@@ -92,32 +91,28 @@ body {
   border-color: var(--cosmetic-border, rgba(251, 191, 36, 0.95)) !important;
   box-shadow:
     0 0 0 1px var(--cosmetic-ring, rgba(251, 191, 36, 0.65)),
-    0 0 18px var(--cosmetic-glow, rgba(251, 191, 36, 0.22)),
-    0 8px 20px rgba(0, 0, 0, 0.3);
+    0 8px 16px rgba(0, 0, 0, 0.3);
 }
 
 .card-cosmetic-sapphire {
   border-color: var(--cosmetic-border, rgba(96, 165, 250, 0.95)) !important;
   box-shadow:
     0 0 0 1px var(--cosmetic-ring, rgba(96, 165, 250, 0.7)),
-    0 0 18px var(--cosmetic-glow, rgba(59, 130, 246, 0.26)),
-    0 8px 20px rgba(0, 0, 0, 0.3);
+    0 8px 16px rgba(0, 0, 0, 0.3);
 }
 
 .card-cosmetic-ruby {
   border-color: var(--cosmetic-border, rgba(248, 113, 113, 0.95)) !important;
   box-shadow:
     0 0 0 1px var(--cosmetic-ring, rgba(248, 113, 113, 0.75)),
-    0 0 18px var(--cosmetic-glow, rgba(225, 29, 72, 0.26)),
-    0 8px 20px rgba(0, 0, 0, 0.3);
+    0 8px 16px rgba(0, 0, 0, 0.3);
 }
 
 .card-cosmetic-emerald {
   border-color: var(--cosmetic-border, rgba(52, 211, 153, 0.95)) !important;
   box-shadow:
     0 0 0 1px var(--cosmetic-ring, rgba(52, 211, 153, 0.75)),
-    0 0 18px var(--cosmetic-glow, rgba(16, 185, 129, 0.26)),
-    0 8px 20px rgba(0, 0, 0, 0.3);
+    0 8px 16px rgba(0, 0, 0, 0.3);
 }
 
 .card-cosmetic-tint-amber {
