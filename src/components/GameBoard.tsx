@@ -245,6 +245,15 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     const s = finishTurn(addMatchStat(gameState, myIdx, 'turnsEnded'));
     commitGameState(s, true);
   };
+
+  const returnToAttackSelection = (state: GameState) => {
+    resetSelections();
+    if (state.gameOver) return;
+    setSelectedAttackers([]);
+    setSelectionMode('selectAttacker');
+    setValidTargets([]);
+    setGameMessage('Sem atacantes disponiveis agora. Use um efeito ou encerre o turno.');
+  };
   const myLabel = myDisplayName;
   const timerOwnerLabel = gameState.currentPlayer === myIdx ? myDisplayName : oppDisplayName;
 
@@ -471,11 +480,17 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     log: [...state.log, 'Nao havia carta valida no descarte para recuperar.'],
   });
 
+  const hasExtraAttackEffect = (card: CardDefinition | BattleCard) => card.effects.some(e =>
+    e.timing === 'onPlay' &&
+    ['attackAgain', 'attackTwice', 'allUnitsAttackTwice'].includes(e.type)
+  );
+
   const handleCardFromHand = (card: CardDefinition, bypassRecoverConfirm = false) => {
     if (blockIfLocked()) return;
     if (!isPlayerTurn || gameState.gameOver) return;
-    if (isAttackPhase) {
-      setGameMessage('Não é possível jogar cartas na fase de ataque!');
+    const canPlayDuringAttack = card.type === 'spell' && hasExtraAttackEffect(card);
+    if (isAttackPhase && !canPlayDuringAttack) {
+      setGameMessage('Apenas efeitos de novo ataque podem ser usados na fase de ataque.');
       return;
     }
 
@@ -537,6 +552,12 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       const s = addMatchStat(playSpell(gameState, myIdx, card), myIdx, 'spellsCast');
       setGameState(s);
       handlePendingEffectFromState(s, bypassRecoverConfirm);
+      if (isAttackPhase && hasExtraAttackEffect(card) && !s.pendingEffect && !s.gameOver) {
+        setSelectionMode('selectAttacker');
+        setSelectedAttackers([]);
+        setValidTargets([]);
+        setGameMessage('Escolha quem vai atacar novamente.');
+      }
     } else if (card.type === 'equipment') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
       if (!bypassRecoverConfirm && requestRecoverConfirmation(card, 'onPlay', () => handleCardFromHand(card, true))) return;
@@ -597,6 +618,12 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
         setGameState(s);
         handlePendingEffectFromState(s);
         resetSelections();
+        if (isAttackPhase && hasExtraAttackEffect(pendingSpell) && !s.pendingEffect && !s.gameOver) {
+          setSelectionMode('selectAttacker');
+          setSelectedAttackers([]);
+          setValidTargets([]);
+          setGameMessage('Escolha quem vai atacar novamente.');
+        }
       }
       return;
     }
@@ -674,16 +701,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       );
 
       if (remainingAttackers.length === 0 || s.gameOver) {
-        // No more attackers or game over, end turn
-        resetSelections();
-        if (!s.gameOver) {
-          setGameMessage('Sem atacantes disponíveis. Encerrando turno...');
-          setTimeout(() => {
-            const endState = finishTurn(addMatchStat(s, myIdx, 'turnsEnded'));
-            commitGameState(endState, true);
-            setGameMessage('');
-          }, 800);
-        }
+        returnToAttackSelection(s);
       } else {
         // More attackers available, let player choose to continue or end
         setSelectedAttackers([]);
@@ -707,6 +725,12 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
         setGameState(s);
         handlePendingEffectFromState(s);
         resetSelections();
+        if (isAttackPhase && hasExtraAttackEffect(pendingSpell) && !s.pendingEffect && !s.gameOver) {
+          setSelectionMode('selectAttacker');
+          setSelectedAttackers([]);
+          setValidTargets([]);
+          setGameMessage('Escolha quem vai atacar novamente.');
+        }
       }
       return;
     }
@@ -739,6 +763,13 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
           hero: { ...s.players[myIdx].hero, currentAttack: s.players[myIdx].hero.currentAttack + (eff.value ?? 0) }
         };
         s = { ...s, players: newPlayers };
+      } else if (eff.type === 'attackAgain') {
+        const newPlayers = [...s.players] as typeof s.players;
+        newPlayers[myIdx] = {
+          ...s.players[myIdx],
+          hero: { ...s.players[myIdx].hero, exhausted: false }
+        };
+        s = { ...s, players: newPlayers };
       }
       setGameState(s);
       resetSelections();
@@ -768,16 +799,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       );
 
       if (remainingAttackers.length === 0 || s.gameOver) {
-        // No more attackers or game over, end turn
-        resetSelections();
-        if (!s.gameOver) {
-          setGameMessage('Sem atacantes disponíveis. Encerrando turno...');
-          setTimeout(() => {
-            const endState = finishTurn(addMatchStat(s, myIdx, 'turnsEnded'));
-            commitGameState(endState, true);
-            setGameMessage('');
-          }, 800);
-        }
+        returnToAttackSelection(s);
       } else {
         // More attackers available, let player choose to continue or end
         setSelectedAttackers([]);
