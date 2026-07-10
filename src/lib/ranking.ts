@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 
 export type MatchMode = 'ai' | 'pvp';
 export type MatchResult = 'win' | 'loss' | 'draw';
-export type FinishReason = 'normal' | 'surrender' | 'inactivity';
+export type FinishReason = 'normal' | 'surrender' | 'inactivity' | 'disconnect';
 
 export interface PlayerMatchResult {
   id: string;
@@ -18,6 +18,7 @@ export interface PlayerMatchResult {
   turns: number | null;
   rating_delta: number;
   rating_after: number | null;
+  match_log: string[];
   created_at: string;
 }
 
@@ -59,8 +60,9 @@ export function getCrystalRank(rating: number) {
 export function getRatingDelta(mode: MatchMode, result: MatchResult, finishReason: FinishReason) {
   if (mode === 'ai') return 0;
   if (result === 'draw') return 5;
-  if (result === 'win') return finishReason === 'inactivity' || finishReason === 'surrender' ? 0 : 25;
-  return finishReason === 'inactivity' || finishReason === 'surrender' ? -15 : -10;
+  const nonNormalFinish = finishReason === 'inactivity' || finishReason === 'surrender' || finishReason === 'disconnect';
+  if (result === 'win') return nonNormalFinish ? 0 : 25;
+  return nonNormalFinish ? -15 : -10;
 }
 
 export async function savePlayerMatchResult(input: {
@@ -74,6 +76,7 @@ export async function savePlayerMatchResult(input: {
   heroId?: string | null;
   opponentHeroId?: string | null;
   turns?: number | null;
+  matchLog?: string[];
 }) {
   const finishReason = input.finishReason ?? 'normal';
   const delta = getRatingDelta(input.mode, input.result, finishReason);
@@ -102,6 +105,7 @@ export async function savePlayerMatchResult(input: {
       turns: input.turns ?? null,
       rating_delta: delta,
       rating_after: input.mode === 'pvp' ? nextRating : currentRating,
+      match_log: sanitizeMatchLog(input.matchLog),
     }, { onConflict: 'match_uid,player_id' });
 
   if (insertError) return { error: insertError.message };
@@ -137,12 +141,27 @@ export async function fetchPlayerHistory(playerId: string, mode?: MatchMode) {
     .select('*')
     .eq('player_id', playerId)
     .order('created_at', { ascending: false })
-    .limit(60);
+    .limit(mode ? 5 : 10);
 
   if (mode) query = query.eq('mode', mode);
 
   const { data, error } = await query;
   return { data: (data ?? []) as PlayerMatchResult[], error: error?.message ?? null };
+}
+
+function sanitizeMatchLog(log?: string[]): string[] {
+  if (!log) return [];
+
+  const sanitized: string[] = [];
+  let totalLength = 0;
+  for (const line of log.slice(-500)) {
+    const cleanLine = String(line).trim().slice(0, 1000);
+    if (!cleanLine) continue;
+    if (totalLength + cleanLine.length > 90000) break;
+    sanitized.push(cleanLine);
+    totalLength += cleanLine.length;
+  }
+  return sanitized;
 }
 
 export function summarizeHistory(history: PlayerMatchResult[]): PlayerSummary {

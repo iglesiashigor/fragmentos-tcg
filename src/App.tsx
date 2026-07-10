@@ -113,6 +113,7 @@ function AppContent() {
         heroId: stateToSave.players[0].hero.cardId,
         opponentHeroId: stateToSave.players[1].hero.cardId,
         turns: stateToSave.turnNumber,
+        matchLog: stateToSave.log,
       })
         .then(() => saveMatchProgress({
           playerId: user.id,

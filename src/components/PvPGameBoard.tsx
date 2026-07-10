@@ -355,6 +355,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
       heroId: gameState.players[playerNumber].hero.cardId,
       opponentHeroId: gameState.players[opponentIndex].hero.cardId,
       turns: gameState.turnNumber,
+      matchLog: gameState.log.map(line => formatPvpLogLine(line, playerNames)),
     })
       .then(() => saveMatchProgress({
         playerId: user.id,

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Award, Bot, Calendar, CheckCircle2, Coins, Crown, Gem, Medal, Palette, Shield, ShoppingBag, Sparkles, Target, Trophy, Users } from 'lucide-react';
+import { ArrowLeft, Award, Bot, Calendar, CheckCircle2, ChevronRight, Coins, Crown, Gem, Medal, Palette, ScrollText, Shield, ShoppingBag, Sparkles, Target, Trophy, Users, X } from 'lucide-react';
 import { useAuth } from '../lib/authContext';
 import {
   fetchPlayerHistory,
@@ -76,6 +76,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
   const [savingFrame, setSavingFrame] = useState<string | null>(null);
   const [savingShop, setSavingShop] = useState<string | null>(null);
   const [frameMessage, setFrameMessage] = useState<string | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<PlayerMatchResult | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -486,7 +487,12 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
               {filteredHistory.length === 0 ? (
                 <p className="text-slate-500 text-sm py-6 text-center">Nenhuma partida registrada ainda.</p>
               ) : filteredHistory.map(match => (
-                <div key={match.id} className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                <button
+                  key={match.id}
+                  type="button"
+                  onClick={() => setSelectedMatch(match)}
+                  className="flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-left transition-colors hover:border-slate-600 hover:bg-slate-900/80"
+                >
                   <div className={`px-2.5 py-1 rounded-lg border text-xs font-black ${resultClass(match.result)}`}>
                     {resultLabel(match.result)}
                   </div>
@@ -503,7 +509,8 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
                       {match.rating_delta >= 0 ? '+' : ''}{match.rating_delta}
                     </span>
                   )}
-                </div>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-600" />
+                </button>
               ))}
             </div>
           </Panel>
@@ -537,6 +544,59 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
           </Panel>
         )}
       </div>
+      {selectedMatch && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="match-log-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setSelectedMatch(null);
+            }
+          }}
+        >
+          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl shadow-black/50">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-800 p-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <ScrollText className="h-4 w-4 text-amber-300" />
+                  <h2 id="match-log-title" className="font-black text-white">Log da partida</h2>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  {selectedMatch.mode === 'pvp'
+                    ? `Contra ${selectedMatch.opponent_name ?? 'Jogador'}`
+                    : 'Contra IA'} - {formatDate(selectedMatch.created_at)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedMatch(null)}
+                className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-400 transition-colors hover:border-slate-600 hover:text-white"
+                aria-label="Fechar log"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              {selectedMatch.match_log?.length ? (
+                <ol className="space-y-2">
+                  {selectedMatch.match_log.map((line, index) => (
+                    <li key={`${index}-${line}`} className="flex gap-3 text-sm leading-relaxed">
+                      <span className="w-7 shrink-0 select-none text-right text-xs text-slate-700">{index + 1}</span>
+                      <span className="text-slate-300">{line}</span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="py-10 text-center text-sm text-slate-500">
+                  Esta partida foi salva antes do historico de logs ser ativado.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
