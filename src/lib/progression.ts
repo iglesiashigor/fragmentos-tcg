@@ -214,7 +214,7 @@ export const PLAYMATS = [
   },
 ];
 
-export type ShopItemType = 'card_frame' | 'playmat';
+export type ShopItemType = 'card_frame' | 'playmat' | 'name_change';
 
 export interface ShopItem {
   id: string;
@@ -224,9 +224,18 @@ export interface ShopItem {
   price: number;
 }
 
+export const NAME_CHANGE_ITEM: ShopItem = {
+  id: 'name_change',
+  type: 'name_change',
+  name: 'Alterar nome',
+  description: 'Troque o nome exibido no perfil, lobby e ranking.',
+  price: 500,
+};
+
 export const SHOP_ITEMS: ShopItem[] = [
   ...CARD_FRAMES.filter(item => item.price > 0).map(item => ({ ...item, type: 'card_frame' as const })),
   ...PLAYMATS.filter(item => item.price > 0).map(item => ({ ...item, type: 'playmat' as const })),
+  NAME_CHANGE_ITEM,
 ];
 
 export function xpNeededForLevel(level: number) {
@@ -481,6 +490,54 @@ export async function purchaseShopItem(playerId: string, item: ShopItem, email?:
     unlocked_playmats: item.type === 'playmat'
       ? Array.from(new Set([...unlockedPlaymats, item.id]))
       : unlockedPlaymats,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase
+    .from('player_progress')
+    .upsert(payload, { onConflict: 'player_id' });
+
+  return { error: error?.message ?? null, progress: payload };
+}
+
+export async function purchaseNameChange(playerId: string, newUsername: string, email?: string | null) {
+  const username = newUsername.trim();
+  if (username.length < 3) return { error: 'Use pelo menos 3 caracteres.' };
+  if (username.length > 18) return { error: 'Use no maximo 18 caracteres.' };
+
+  if (isLocalTestAccount(email)) {
+    return {
+      error: null,
+      progress: {
+        ...localTestPlayerProgress(playerId),
+        updated_at: new Date().toISOString(),
+      },
+    };
+  }
+
+  const { data: current, error: fetchError } = await fetchPlayerProgress(playerId, email);
+  if (fetchError) return { error: fetchError };
+
+  const progress = current ?? defaultPlayerProgress(playerId);
+  const gold = progress.gold ?? 0;
+  if (gold < NAME_CHANGE_ITEM.price) return { error: 'Gold insuficiente.' };
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({
+      username,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', playerId);
+
+  if (profileError) {
+    if (profileError.code === '23505') return { error: 'Esse nome ja esta em uso.' };
+    return { error: profileError.message };
+  }
+
+  const payload: PlayerProgress = {
+    ...progress,
+    gold: gold - NAME_CHANGE_ITEM.price,
     updated_at: new Date().toISOString(),
   };
 
