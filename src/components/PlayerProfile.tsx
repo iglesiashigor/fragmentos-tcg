@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Award, Bot, Calendar, CheckCircle2, ChevronRight, Coins, Crown, Gem, Medal, Palette, ScrollText, Shield, ShoppingBag, Sparkles, Target, Trophy, Users, X } from 'lucide-react';
+import { ArrowLeft, Award, Bot, Calendar, CheckCircle2, ChevronRight, Coins, Crown, Gem, Medal, Palette, Pencil, ScrollText, Shield, ShoppingBag, Sparkles, Target, Trophy, Users, X } from 'lucide-react';
 import { useAuth } from '../lib/authContext';
 import {
   fetchPlayerHistory,
@@ -19,9 +19,11 @@ import {
   equipProfileFrame,
   fetchPlayerProgress,
   getTodayKey,
+  NAME_CHANGE_ITEM,
   PLAYMATS,
   PlayerProgress,
   PROFILE_FRAMES,
+  purchaseNameChange,
   purchaseShopItem,
   SHOP_ITEMS,
   ShopItem,
@@ -66,7 +68,7 @@ function formatDate(value: string) {
 }
 
 export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: PlayerProfileProps) {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [tab, setTab] = useState<Tab>('overview');
   const [historyMode, setHistoryMode] = useState<'all' | 'pvp' | 'ai'>('all');
   const [history, setHistory] = useState<PlayerMatchResult[]>([]);
@@ -77,6 +79,8 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
   const [savingShop, setSavingShop] = useState<string | null>(null);
   const [frameMessage, setFrameMessage] = useState<string | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<PlayerMatchResult | null>(null);
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
 
   useEffect(() => {
     if (!user) {
@@ -90,7 +94,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
       const [historyResult, rankingResult, progressResult] = await Promise.all([
         fetchPlayerHistory(user.id),
         fetchRanking(),
-        fetchPlayerProgress(user.id),
+        fetchPlayerProgress(user.id, user.email),
       ]);
       if (!mounted) return;
       setHistory(historyResult.data);
@@ -140,7 +144,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
 
     setSavingFrame(frameId);
     setFrameMessage(null);
-    const result = await equipProfileFrame(user.id, frameId);
+    const result = await equipProfileFrame(user.id, frameId, user.email);
     if (result.error) {
       setFrameMessage(result.error);
     } else {
@@ -159,7 +163,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
     if (!user || savingShop) return;
     setSavingShop(item.id);
     setFrameMessage(null);
-    const result = await purchaseShopItem(user.id, item);
+    const result = await purchaseShopItem(user.id, item, user.email);
     if (result.error || !result.progress) {
       setFrameMessage(result.error ?? 'Nao foi possivel comprar o item.');
     } else {
@@ -173,7 +177,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
     if (!user || savingShop) return;
     setSavingShop(frameId);
     setFrameMessage(null);
-    const result = await equipCardFrame(user.id, frameId);
+    const result = await equipCardFrame(user.id, frameId, user.email);
     if (result.error) {
       setFrameMessage(result.error);
     } else {
@@ -191,7 +195,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
     if (!user || savingShop) return;
     setSavingShop(playmatId);
     setFrameMessage(null);
-    const result = await equipPlaymat(user.id, playmatId);
+    const result = await equipPlaymat(user.id, playmatId, user.email);
     if (result.error) {
       setFrameMessage(result.error);
     } else {
@@ -201,6 +205,34 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
         updated_at: new Date().toISOString(),
       });
       setFrameMessage('Campo equipado.');
+    }
+    setSavingShop(null);
+  };
+
+  const handleOpenNameChange = () => {
+    setNewUsername(profile?.username ?? '');
+    setFrameMessage(null);
+    setShowNameModal(true);
+  };
+
+  const handleNameChange = async () => {
+    if (!user || savingShop) return;
+    const nextName = newUsername.trim();
+    if (nextName === profile?.username) {
+      setFrameMessage('Escolha um nome diferente do atual.');
+      return;
+    }
+
+    setSavingShop(NAME_CHANGE_ITEM.id);
+    setFrameMessage(null);
+    const result = await purchaseNameChange(user.id, nextName, user.email);
+    if (result.error || !result.progress) {
+      setFrameMessage(result.error ?? 'Nao foi possivel alterar o nome.');
+    } else {
+      updateProgress(result.progress);
+      await refreshProfile();
+      setFrameMessage('Nome alterado com sucesso.');
+      setShowNameModal(false);
     }
     setSavingShop(null);
   };
@@ -463,6 +495,40 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
                 <p className="mt-3 text-xs text-slate-400">{frameMessage}</p>
               )}
             </Panel>
+
+            <div className="lg:col-span-2">
+              <Panel title="Servicos" icon={<Pencil className="w-4 h-4 text-amber-300" />}>
+                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-300/30 bg-amber-500/15">
+                        <Pencil className="h-5 w-5 text-amber-200" />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-white">{NAME_CHANGE_ITEM.name}</h3>
+                        <p className="mt-1 text-sm text-slate-400">{NAME_CHANGE_ITEM.description}</p>
+                        <p className="mt-2 flex items-center gap-1.5 text-xs font-black text-amber-200">
+                          <Coins className="h-3.5 w-3.5" />
+                          {NAME_CHANGE_ITEM.price} gold
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleOpenNameChange}
+                      disabled={savingShop !== null || gold < NAME_CHANGE_ITEM.price}
+                      className={`rounded-xl border px-4 py-3 text-sm font-black transition-colors ${
+                        gold >= NAME_CHANGE_ITEM.price
+                          ? 'border-emerald-400/35 bg-emerald-600/20 text-emerald-100 hover:bg-emerald-600/30'
+                          : 'cursor-not-allowed border-slate-800 bg-slate-900 text-slate-500'
+                      }`}
+                    >
+                      {gold >= NAME_CHANGE_ITEM.price ? 'Comprar troca' : 'Gold insuficiente'}
+                    </button>
+                  </div>
+                </div>
+              </Panel>
+            </div>
           </div>
         ) : tab === 'history' ? (
           <Panel title="Historico de partidas" icon={<Calendar className="w-4 h-4 text-blue-300" />}>
@@ -593,6 +659,75 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
                   Esta partida foi salva antes do historico de logs ser ativado.
                 </p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {showNameModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="name-change-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowNameModal(false);
+            }
+          }}
+        >
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl shadow-black/50">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-800 p-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Pencil className="h-4 w-4 text-amber-300" />
+                  <h2 id="name-change-title" className="font-black text-white">Alterar nome</h2>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  Custo: {NAME_CHANGE_ITEM.price} gold
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNameModal(false)}
+                className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-400 transition-colors hover:border-slate-600 hover:text-white"
+                aria-label="Fechar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-4">
+              <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-500">
+                Novo nome
+              </label>
+              <input
+                value={newUsername}
+                onChange={(event) => setNewUsername(event.target.value)}
+                maxLength={18}
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-600 focus:border-amber-400/60"
+                placeholder="Digite o novo nome"
+                autoFocus
+              />
+              <p className="mt-2 text-xs text-slate-500">Use entre 3 e 18 caracteres.</p>
+              {frameMessage && (
+                <p className="mt-3 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-300">{frameMessage}</p>
+              )}
+              <div className="mt-5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNameModal(false)}
+                  className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-bold text-slate-300 transition-colors hover:border-slate-600 hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNameChange}
+                  disabled={savingShop === NAME_CHANGE_ITEM.id}
+                  className="flex-1 rounded-xl border border-amber-300/35 bg-amber-500 px-4 py-3 text-sm font-black text-slate-950 transition-colors hover:bg-amber-400 disabled:cursor-wait disabled:opacity-70"
+                >
+                  {savingShop === NAME_CHANGE_ITEM.id ? 'Salvando...' : 'Confirmar'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
