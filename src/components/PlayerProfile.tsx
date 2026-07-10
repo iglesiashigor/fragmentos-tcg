@@ -292,7 +292,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
           </div>
         </div>
 
-        <div className="flex gap-2 mb-5">
+        <div className="flex gap-2 mb-5 overflow-x-auto pb-2">
           {[
             ['overview', 'Resumo', Sparkles],
             ['missions', 'Missoes', Target],
@@ -303,7 +303,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
             <button
               key={id as string}
               onClick={() => setTab(id as Tab)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold transition-colors ${
+              className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold transition-colors ${
                 tab === id
                   ? 'bg-amber-600/20 border-amber-400/40 text-amber-200'
                   : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'

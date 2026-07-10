@@ -157,18 +157,18 @@ export default function MainMenuLobby({
       )}
 
       <header className="border-b border-slate-800/80 bg-slate-950/90 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-400/40 flex items-center justify-center shadow-lg shadow-amber-950/40">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl bg-amber-500/15 border border-amber-400/40 flex items-center justify-center shadow-lg shadow-amber-950/40">
               <Sparkles className="w-5 h-5 text-amber-300" />
             </div>
-            <div>
-              <h1 className="text-2xl font-black tracking-wide text-white leading-none">FRAGMENTOS</h1>
-              <p className="text-[11px] uppercase tracking-[0.28em] text-amber-300/80 mt-1">Trading Card Game</p>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-black tracking-wide text-white leading-none truncate">FRAGMENTOS</h1>
+              <p className="hidden min-[360px]:block text-[9px] sm:text-[11px] uppercase tracking-[0.22em] sm:tracking-[0.28em] text-amber-300/80 mt-1 truncate">Trading Card Game</p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex shrink-0 items-center justify-end gap-2">
             {user ? (
               <>
                 <div className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2">
@@ -201,7 +201,7 @@ export default function MainMenuLobby({
 
       <main className="max-w-7xl mx-auto w-full px-4 py-5 lg:py-7">
         <div className="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)] gap-5">
-          <aside className="space-y-3">
+          <aside className="order-2 space-y-3 xl:order-1">
             <button
               onClick={() => setGameMode('ai')}
               className={`w-full rounded-xl border p-4 text-left transition-all ${gameMode === 'ai' ? 'border-blue-500/70 bg-blue-950/30 shadow-lg shadow-blue-950/30' : 'border-slate-800 bg-slate-950/70 hover:border-slate-600'}`}
@@ -310,7 +310,7 @@ export default function MainMenuLobby({
             </div>
           </aside>
 
-          <section className="rounded-2xl border border-slate-800/90 bg-slate-950/75 shadow-2xl shadow-black/30 overflow-hidden">
+          <section className="order-1 rounded-2xl border border-slate-800/90 bg-slate-950/75 shadow-2xl shadow-black/30 overflow-hidden xl:order-2">
             <div className="border-b border-slate-800 bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-slate-950 px-5 py-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -364,8 +364,8 @@ export default function MainMenuLobby({
                               <Shield className="w-5 h-5 text-red-300" />
                             </div>
                             <div className="min-w-0">
-                              <div className="text-base font-black text-white truncate">{selectedAiDeck?.name ?? 'IA'}</div>
-                              <div className="text-xs text-slate-400 truncate">{selectedAiHero?.name ?? 'Heroi'} como lider</div>
+                              <div className="text-sm font-black leading-tight text-white break-words">{selectedAiDeck?.name ?? 'IA'}</div>
+                              <div className="mt-0.5 text-xs leading-tight text-slate-400 break-words">{selectedAiHero?.name ?? 'Heroi'} como lider</div>
                               <div className="text-[11px] text-slate-500 mt-1">
                                 {(selectedAiDeck?.coreCards.length ?? 0) + (selectedAiDeck?.neutralCards.length ?? 0)} cartas
                               </div>

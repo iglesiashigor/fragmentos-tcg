@@ -50,19 +50,19 @@ export default function CollectionViewer({ onBack }: CollectionViewerProps) {
       {inspectedCard && <CardInspector card={inspectedCard} onClose={() => setInspectedCard(null)} />}
 
       {/* Header */}
-      <div className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center gap-4">
-        <button onClick={onBack} className="text-gray-400 hover:text-white transition-colors">
+      <header className="sticky top-0 z-30 bg-gray-900/95 backdrop-blur border-b border-gray-800 px-3 sm:px-4 py-3 flex items-center gap-3 sm:gap-4">
+        <button onClick={onBack} aria-label="Voltar" className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <Star className="w-5 h-5 text-amber-400" />
-        <h1 className="text-white font-bold text-lg">Coleção de Cartas</h1>
-        <span className="text-gray-500 text-sm ml-auto">{cards.length} cartas</span>
-      </div>
+        <Star className="hidden min-[360px]:block w-5 h-5 shrink-0 text-amber-400" />
+        <h1 className="min-w-0 truncate text-white font-bold text-base sm:text-lg">Coleção de Cartas</h1>
+        <span className="shrink-0 text-gray-500 text-xs sm:text-sm ml-auto">{cards.length} cartas</span>
+      </header>
 
       {/* Filters */}
-      <div className="bg-gray-900/50 border-b border-gray-800 px-4 py-2 flex items-center gap-3 flex-wrap">
+      <div className="sticky top-[57px] z-20 bg-gray-950/95 backdrop-blur border-b border-gray-800 px-3 sm:px-4 py-2.5 space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-3">
         {/* Search */}
-        <div className="flex items-center gap-2 bg-gray-800 rounded-lg px-3 py-1.5 flex-1 min-w-40 max-w-xs">
+        <div className="flex min-w-0 items-center gap-2 bg-gray-800 rounded-lg px-3 py-2 sm:flex-1 sm:max-w-xs">
           <Search className="w-4 h-4 text-gray-400" />
           <input
             type="text"
@@ -74,12 +74,12 @@ export default function CollectionViewer({ onBack }: CollectionViewerProps) {
         </div>
 
         {/* Type filter */}
-        <div className="flex gap-1 flex-wrap">
+        <div className="flex gap-1 overflow-x-auto pb-0.5 sm:flex-wrap sm:overflow-visible sm:pb-0">
           {TYPE_OPTIONS.map(opt => (
             <button
               key={opt.value}
               onClick={() => setTypeFilter(opt.value)}
-              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+              className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 typeFilter === opt.value ? 'bg-amber-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
               }`}
             >
@@ -90,10 +90,10 @@ export default function CollectionViewer({ onBack }: CollectionViewerProps) {
       </div>
 
       {/* Cards grid */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="flex flex-wrap gap-3">
+      <div className="flex-1 p-3 sm:p-4">
+        <div className="grid grid-cols-2 min-[360px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9 gap-x-3 gap-y-4 justify-items-center">
           {cards.map(card => (
-            <div key={card.id} className="flex flex-col items-center gap-1">
+            <div key={card.id} className="min-w-0 flex flex-col items-center gap-1">
               <CardDisplay
                 card={card}
                 size="md"
