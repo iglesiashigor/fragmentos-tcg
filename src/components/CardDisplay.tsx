@@ -101,8 +101,8 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
 
   const colorClass = TYPE_COLORS[type] || TYPE_COLORS.unit;
   const artGradient = TYPE_ART_COLORS[type] || TYPE_ART_COLORS.unit;
-  const selected = isSelected ? 'ring-2 ring-amber-300 ring-offset-2 ring-offset-slate-950 scale-105 shadow-xl shadow-amber-300/40 brightness-110' : '';
-  const validTarget = isValidTarget ? 'ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-950 cursor-pointer shadow-lg shadow-emerald-300/30 brightness-110' : '';
+  const selected = isSelected ? 'ring-2 ring-amber-300 ring-offset-2 ring-offset-slate-950 scale-105 brightness-105' : '';
+  const validTarget = isValidTarget ? 'ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-950 cursor-pointer brightness-105' : '';
   const clickable = onClick ? 'cursor-pointer hover:scale-[1.03] card-glow' : '';
   const tierClass = tier === 'weak' ? 'tier-weak' : tier === 'medium' ? 'tier-medium' : tier === 'strong' ? 'tier-strong' : '';
   const heroClass = type === 'hero' ? 'hero-card' : '';
@@ -263,7 +263,7 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
 
       {/* Summoned this turn indicator */}
       {bc?.summonedThisTurn && (
-        <div className="absolute inset-0 border-2 border-yellow-400/60 rounded-lg pointer-events-none animate-pulse" />
+        <div className="absolute inset-0 border-2 border-yellow-400/60 rounded-lg pointer-events-none" />
       )}
 
       {isSelected && (
