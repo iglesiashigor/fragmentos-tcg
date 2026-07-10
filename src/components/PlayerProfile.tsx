@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Award, Bot, Calendar, CheckCircle2, ChevronRight, Coins, Crown, Gem, Medal, Palette, Pencil, ScrollText, Shield, ShoppingBag, Sparkles, Target, Trophy, Users, X } from 'lucide-react';
 import { useAuth } from '../lib/authContext';
 import {
+  CRYSTAL_RANKS,
   fetchPlayerHistory,
   fetchRanking,
   getCrystalRank,
@@ -35,9 +36,10 @@ interface PlayerProfileProps {
   onBack: () => void;
   onShowAuth: () => void;
   onProgressChange?: (progress: PlayerProgress) => void;
+  initialTab?: ProfileTab;
 }
 
-type Tab = 'overview' | 'missions' | 'shop' | 'history' | 'ranking';
+export type ProfileTab = 'overview' | 'missions' | 'shop' | 'history' | 'ranking';
 
 function resultLabel(result: PlayerMatchResult['result']) {
   if (result === 'win') return 'Vitoria';
@@ -67,9 +69,9 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: PlayerProfileProps) {
+export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, initialTab = 'overview' }: PlayerProfileProps) {
   const { user, profile, refreshProfile } = useAuth();
-  const [tab, setTab] = useState<Tab>('overview');
+  const [tab, setTab] = useState<ProfileTab>(initialTab);
   const [historyMode, setHistoryMode] = useState<'all' | 'pvp' | 'ai'>('all');
   const [history, setHistory] = useState<PlayerMatchResult[]>([]);
   const [ranking, setRanking] = useState<RankingProfile[]>([]);
@@ -83,6 +85,10 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
   const [newUsername, setNewUsername] = useState('');
 
   useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
     if (!user) {
       setLoading(false);
       return;
@@ -93,7 +99,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
       setLoading(true);
       const [historyResult, rankingResult, progressResult] = await Promise.all([
         fetchPlayerHistory(user.id),
-        fetchRanking(),
+        fetchRanking(500),
         fetchPlayerProgress(user.id, user.email),
       ]);
       if (!mounted) return;
@@ -116,6 +122,17 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
   const pvpTotal = summary.pvpWins + summary.pvpLosses + summary.pvpDraws;
   const winRate = pvpTotal > 0 ? Math.round((summary.pvpWins / pvpTotal) * 100) : 0;
   const myPosition = user ? ranking.findIndex(item => item.id === user.id) + 1 : 0;
+  const rankingByRank = useMemo(() => {
+    return [...CRYSTAL_RANKS]
+      .reverse()
+      .map(rankInfo => ({
+        rank: rankInfo,
+        players: ranking
+          .filter(item => getCrystalRank(item.rating).name === rankInfo.name)
+          .slice(0, 5),
+      }))
+      .filter(group => group.players.length > 0);
+  }, [ranking]);
   const levelInfo = calculateLevelFromXp(progress?.total_xp ?? 0);
   const xpToNext = xpNeededForLevel(levelInfo.level);
   const xpPercent = Math.min(100, Math.round((levelInfo.xp / xpToNext) * 100));
@@ -334,7 +351,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
           ].map(([id, label, Icon]) => (
             <button
               key={id as string}
-              onClick={() => setTab(id as Tab)}
+              onClick={() => setTab(id as ProfileTab)}
               className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold transition-colors ${
                 tab === id
                   ? 'bg-amber-600/20 border-amber-400/40 text-amber-200'
@@ -582,30 +599,51 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange }: 
           </Panel>
         ) : (
           <Panel title="Ranking PvP" icon={<Medal className="w-4 h-4 text-amber-300" />}>
-            <div className="space-y-2">
-              {ranking.map((item, index) => {
-                const itemRank = getCrystalRank(item.rating);
-                const total = item.wins + item.losses + item.draws;
-                const rate = total > 0 ? Math.round((item.wins / total) * 100) : 0;
-                return (
-                  <div key={item.id} className={`flex items-center gap-3 rounded-xl border p-3 ${
-                    item.id === user.id ? 'bg-amber-950/25 border-amber-500/40' : 'bg-slate-950/60 border-slate-800'
-                  }`}>
-                    <div className="w-8 text-center text-slate-400 font-black">#{index + 1}</div>
-                    <div className="w-9 h-9 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center">
-                      <Gem className={`w-5 h-5 ${itemRank.color}`} />
+            <div className="space-y-4">
+              {rankingByRank.length === 0 ? (
+                <p className="text-slate-500 text-sm py-6 text-center">Nenhum jogador ranqueado ainda.</p>
+              ) : rankingByRank.map(group => (
+                <section key={group.rank.name} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-3">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-900">
+                        <Gem className={`h-5 w-5 ${group.rank.color}`} />
+                      </div>
+                      <div>
+                        <h3 className={`text-sm font-black ${group.rank.color}`}>{group.rank.name}</h3>
+                        <p className="text-[11px] text-slate-500">Top 5 do elo</p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-white truncate">{item.username}</p>
-                      <p className={`text-xs font-semibold ${itemRank.color}`}>{itemRank.name}</p>
-                    </div>
-                    <div className="text-right text-xs text-slate-400">
-                      <p className="text-white font-black">{item.rating} pts</p>
-                      <p>{item.wins}V / {item.losses}D / {rate}%</p>
-                    </div>
+                    <span className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-slate-400">
+                      {group.rank.min}+ pts
+                    </span>
                   </div>
-                );
-              })}
+                  <div className="space-y-2">
+                    {group.players.map((item, index) => {
+                      const total = item.wins + item.losses + item.draws;
+                      const rate = total > 0 ? Math.round((item.wins / total) * 100) : 0;
+                      return (
+                        <div key={item.id} className={`flex items-center gap-3 rounded-xl border p-3 ${
+                          item.id === user.id ? 'bg-amber-950/25 border-amber-500/40' : 'bg-slate-950/60 border-slate-800'
+                        }`}>
+                          <div className="w-8 text-center text-slate-400 font-black">#{index + 1}</div>
+                          <div className="w-9 h-9 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center">
+                            <Gem className={`w-5 h-5 ${group.rank.color}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-white truncate">{item.username}</p>
+                            <p className="text-xs text-slate-500">{item.wins}V / {item.losses}D / {rate}%</p>
+                          </div>
+                          <div className="text-right text-xs text-slate-400">
+                            <p className="text-white font-black">{item.rating} pts</p>
+                            <p>{total} partidas</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
             </div>
           </Panel>
         )}

@@ -4,10 +4,11 @@ import { DEFAULT_DECKS, deleteDeck, getSavedDecks } from '../data/defaultDecks';
 import { getCardById } from '../data/cards';
 import { useAuth } from '../lib/authContext';
 import { fetchPlayerProgress, PlayerProgress } from '../lib/progression';
+import type { ProfileTab } from './PlayerProfile';
 import {
-  AlertTriangle, BookOpen, ChevronRight, Coins, Crown, Edit3, Gem, Globe,
-  Layers, LogIn, LogOut, Plus, Shield, Sparkles, Star, Swords, Trash2,
-  Trophy, User, Users, Zap,
+  AlertTriangle, BookOpen, Calendar, ChevronRight, Coins, Crown, Edit3, Gem, Globe,
+  Layers, LogIn, LogOut, Plus, Shield, ShoppingBag, Sparkles, Star, Swords, Target,
+  Trash2, Trophy, User, Users, Zap,
 } from 'lucide-react';
 
 interface MainMenuLobbyProps {
@@ -15,7 +16,7 @@ interface MainMenuLobbyProps {
   onStartPvp: () => void;
   onOpenDeckBuilder: (deck?: DeckDefinition) => void;
   onOpenCollection: () => void;
-  onOpenProfile: () => void;
+  onOpenProfile: (tab?: ProfileTab) => void;
   onShowAuth: () => void;
   decks: DeckDefinition[];
   decksLoading: boolean;
@@ -255,19 +256,37 @@ export default function MainMenuLobby({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 xl:grid-cols-1 gap-2">
-              <button onClick={onOpenProfile} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-3 text-sm font-bold text-slate-300 hover:border-amber-500/50 hover:text-amber-200 transition-colors">
-                <Trophy className="w-4 h-4" />
-                Perfil
-              </button>
-              <button onClick={onOpenCollection} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-3 text-sm font-bold text-slate-300 hover:border-blue-500/50 hover:text-blue-200 transition-colors">
-                <BookOpen className="w-4 h-4" />
-                Colecao
-              </button>
-              <button onClick={onOpenProfile} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-3 text-sm font-bold text-slate-300 hover:border-emerald-500/50 hover:text-emerald-200 transition-colors">
-                <Coins className="w-4 h-4" />
-                Loja
-              </button>
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Menu</span>
+                <ChevronRight className="h-3.5 w-3.5 text-slate-600" />
+              </div>
+              <div className="grid grid-cols-2 gap-2 xl:grid-cols-1">
+                <button onClick={() => onOpenProfile('overview')} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-3 text-sm font-bold text-slate-300 transition-colors hover:border-amber-500/50 hover:text-amber-200">
+                  <Trophy className="w-4 h-4" />
+                  Perfil
+                </button>
+                <button onClick={() => onOpenProfile('missions')} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-3 text-sm font-bold text-slate-300 transition-colors hover:border-cyan-500/50 hover:text-cyan-200">
+                  <Target className="w-4 h-4" />
+                  Missoes
+                </button>
+                <button onClick={() => onOpenProfile('shop')} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-3 text-sm font-bold text-slate-300 transition-colors hover:border-emerald-500/50 hover:text-emerald-200">
+                  <ShoppingBag className="w-4 h-4" />
+                  Loja
+                </button>
+                <button onClick={() => onOpenProfile('history')} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-3 text-sm font-bold text-slate-300 transition-colors hover:border-blue-500/50 hover:text-blue-200">
+                  <Calendar className="w-4 h-4" />
+                  Historico
+                </button>
+                <button onClick={() => onOpenProfile('ranking')} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-3 text-sm font-bold text-slate-300 transition-colors hover:border-amber-500/50 hover:text-amber-200">
+                  <Crown className="w-4 h-4" />
+                  Ranking
+                </button>
+                <button onClick={onOpenCollection} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-3 text-sm font-bold text-slate-300 transition-colors hover:border-blue-500/50 hover:text-blue-200">
+                  <BookOpen className="w-4 h-4" />
+                  Colecao
+                </button>
+              </div>
             </div>
 
             <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
