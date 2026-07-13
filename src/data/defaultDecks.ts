@@ -90,6 +90,53 @@ export const DEFAULT_DECKS: DeckDefinition[] = [
       { cardId: 'boneco-de-treino', count: 2 },
     ],
   },
+  {
+    id: 'deck-metadilho-ladino',
+    name: 'Metadilho Ladino - Padrao',
+    heroId: 'metadilho-ladino',
+    coreCards: [
+      { cardId: 'laminas-envenenadas', count: 2 },
+      { cardId: 'botas-de-velocidade', count: 2 },
+      { cardId: 'festival-de-verao', count: 2 },
+      { cardId: 'laminas-gemias', count: 2 },
+      { cardId: 'lamina-ancia', count: 2 },
+      { cardId: 'gato-furtivo', count: 2 },
+      { cardId: 'taverneiro-desastrado', count: 2 },
+      { cardId: 'patrulheiro-corrupto', count: 2 },
+      { cardId: 'mercador-sombrio', count: 2 },
+      { cardId: 'mestre-de-guilda', count: 2 },
+    ],
+    neutralCards: [
+      { cardId: 'pocao-de-sorte', count: 2 },
+      { cardId: 'refeicao', count: 2 },
+      { cardId: 'reviver', count: 2 },
+      { cardId: 'devastacao', count: 2 },
+      { cardId: 'pocao-purificante', count: 2 },
+    ],
+  },
+  {
+    id: 'deck-hibrido-samurai',
+    name: 'Hibrido Samurai - Padrao',
+    heroId: 'hibrido-samurai',
+    coreCards: [
+      { cardId: 'mil-petalas', count: 3 },
+      { cardId: 'shakra', count: 2 },
+      { cardId: 'espalhe', count: 3 },
+      { cardId: 'boa-vista', count: 2 },
+      { cardId: 'local-calmo', count: 2 },
+      { cardId: 'katana-especial', count: 3 },
+      { cardId: 'faixa-verde', count: 2 },
+      { cardId: 'faixa-azul', count: 1 },
+      { cardId: 'faixa-marrom', count: 2 },
+    ],
+    neutralCards: [
+      { cardId: 'pocao-de-sorte', count: 2 },
+      { cardId: 'refeicao', count: 2 },
+      { cardId: 'reviver', count: 2 },
+      { cardId: 'pequenos-reparos', count: 2 },
+      { cardId: 'boneco-de-treino', count: 2 },
+    ],
+  },
 ];
 
 export function saveDeck(deck: DeckDefinition): void {
@@ -104,7 +151,12 @@ export function getSavedDecks(): DeckDefinition[] {
   try {
     const raw = localStorage.getItem('fragmentos-decks');
     if (!raw) return [...DEFAULT_DECKS];
-    return JSON.parse(raw);
+    const saved = JSON.parse(raw) as DeckDefinition[];
+    const savedIds = new Set(saved.map(deck => deck.id));
+    return [
+      ...saved,
+      ...DEFAULT_DECKS.filter(deck => !savedIds.has(deck.id)),
+    ];
   } catch {
     return [...DEFAULT_DECKS];
   }
