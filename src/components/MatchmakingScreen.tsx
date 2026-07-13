@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { DeckDefinition } from '../types/game';
+import { getCardById } from '../data/cards';
 import { useAuth } from '../lib/authContext';
 import { useDecks } from '../hooks/useDecks';
 import {
@@ -29,14 +30,15 @@ interface MatchmakingScreenProps {
   onGameStart: (roomId: string) => void;
   user: ReturnType<typeof useAuth>['user'];
   decks: DeckDefinition[];
+  selectedDeckId?: string;
   onShowAuth: () => void;
 }
 
-export default function MatchmakingScreen({ onBack, onGameStart, user, decks, onShowAuth }: MatchmakingScreenProps) {
+export default function MatchmakingScreen({ onBack, onGameStart, user, decks, selectedDeckId, onShowAuth }: MatchmakingScreenProps) {
   const [rooms, setRooms] = useState<GameRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [selectedDeck, setSelectedDeck] = useState<string>('');
+  const [selectedDeck, setSelectedDeck] = useState<string>(selectedDeckId ?? '');
   const [myRoom, setMyRoom] = useState<string | null>(null);
   const [roomDetail, setRoomDetail] = useState<GameRoom | null>(null);
   const [error, setError] = useState('');
@@ -44,13 +46,22 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
   const { signOut } = useAuth();
   const { decks: dbDecks } = useDecks();
   const allDecks = user ? dbDecks : decks;
+  const chosenDeck = allDecks.find(deck => deck.id === selectedDeck) ?? decks.find(deck => deck.id === selectedDeck);
+  const chosenHero = chosenDeck ? getCardById(chosenDeck.heroId) : null;
+  const chosenDeckCardCount = chosenDeck
+    ? chosenDeck.coreCards.reduce((sum, card) => sum + card.count, 0) + chosenDeck.neutralCards.reduce((sum, card) => sum + card.count, 0)
+    : 0;
   const staleWaitingCutoff = () => new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
   useEffect(() => {
+    if (selectedDeckId) {
+      setSelectedDeck(selectedDeckId);
+      return;
+    }
     if (allDecks.length > 0 && !selectedDeck) {
       setSelectedDeck(allDecks[0].id);
     }
-  }, [allDecks, selectedDeck]);
+  }, [allDecks, selectedDeck, selectedDeckId]);
 
   const fetchRooms = useCallback(async () => {
     if (user) {
@@ -138,8 +149,21 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
       .maybeSingle();
 
     if (existingRoom) {
-      setMyRoom(existingRoom.id);
-      setRoomDetail(existingRoom as GameRoom);
+      const { data: updatedRoom } = await supabase
+        .from('game_rooms')
+        .update({
+          player1_deck_id: selectedDeck,
+          player1_last_seen: new Date().toISOString(),
+        })
+        .eq('id', existingRoom.id)
+        .eq('status', 'waiting')
+        .is('player2_id', null)
+        .select('*')
+        .maybeSingle();
+
+      const room = (updatedRoom ?? existingRoom) as GameRoom;
+      setMyRoom(room.id);
+      setRoomDetail(room);
       setCreating(false);
       return;
     }
@@ -359,28 +383,39 @@ export default function MatchmakingScreen({ onBack, onGameStart, user, decks, on
       </div>
 
       <div className="max-w-3xl mx-auto w-full px-4 py-6">
-        {/* Deck selection */}
+        {/* Selected deck */}
         <div className="mb-6">
           <h3 className="text-gray-400 text-xs uppercase font-semibold mb-2 flex items-center gap-2">
             <Sword className="w-3 h-3" />
-            Selecione seu Baralho
+            Seu baralho PvP
           </h3>
-          <div className="flex gap-2 flex-wrap">
-            {allDecks.map(deck => (
-              <button
-                key={deck.id}
-                onClick={() => setSelectedDeck(deck.id)}
-                className={`px-4 py-2 rounded-lg text-sm border transition-all ${
-                  selectedDeck === deck.id
-                    ? 'bg-amber-900/30 border-amber-500 text-amber-300'
-                    : 'bg-gray-900 border-gray-800 text-gray-400 hover:border-gray-600'
-                }`}
-              >
-                {deck.name}
-              </button>
-            ))}
-            {allDecks.length === 0 && (
-              <p className="text-gray-500 text-sm">Nenhum baralho. Crie um primeiro no menu principal.</p>
+          <div className="rounded-xl border border-blue-700/50 bg-blue-950/20 p-4">
+            {chosenDeck ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="text-lg font-black text-white truncate">{chosenDeck.name}</div>
+                  <div className="mt-1 text-sm text-blue-200">{chosenHero?.name ?? 'Heroi'} como lider</div>
+                  <div className="mt-1 text-xs text-gray-400">{chosenDeckCardCount} cartas</div>
+                </div>
+                <button
+                  onClick={handleBack}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-bold text-slate-300 transition-colors hover:border-blue-500/60 hover:text-blue-200"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Trocar baralho
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-gray-400 text-sm">Nenhum baralho selecionado. Volte ao lobby e escolha um baralho para PvP.</p>
+                <button
+                  onClick={handleBack}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-blue-600"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Escolher baralho
+                </button>
+              </div>
             )}
           </div>
         </div>

@@ -13,7 +13,7 @@ import {
 
 interface MainMenuLobbyProps {
   onStartGame: (playerDeck: DeckDefinition, aiDeck: DeckDefinition) => void;
-  onStartPvp: () => void;
+  onStartPvp: (playerDeck: DeckDefinition) => void;
   onOpenDeckBuilder: (deck?: DeckDefinition) => void;
   onOpenCollection: () => void;
   onOpenProfile: (tab?: ProfileTab) => void;
@@ -27,6 +27,7 @@ interface MainMenuLobbyProps {
 }
 
 const LAST_AI_MATCH_DECKS_KEY = 'fragmentos-last-ai-match-decks';
+const LAST_PVP_DECK_KEY = 'fragmentos-last-pvp-deck';
 
 function getLastAIMatchDecks(): { playerDeckId?: string; aiDeckId?: string } {
   try {
@@ -38,6 +39,14 @@ function getLastAIMatchDecks(): { playerDeckId?: string; aiDeckId?: string } {
 
 function saveLastAIMatchDecks(playerDeckId: string, aiDeckId: string) {
   localStorage.setItem(LAST_AI_MATCH_DECKS_KEY, JSON.stringify({ playerDeckId, aiDeckId }));
+}
+
+function getLastPvpDeckId(): string | undefined {
+  return localStorage.getItem(LAST_PVP_DECK_KEY) ?? undefined;
+}
+
+function saveLastPvpDeckId(deckId: string) {
+  localStorage.setItem(LAST_PVP_DECK_KEY, deckId);
 }
 
 export default function MainMenuLobby({
@@ -57,7 +66,8 @@ export default function MainMenuLobby({
   const { signOut } = useAuth();
   const displayDecks = useMemo(() => decks.length > 0 ? decks : DEFAULT_DECKS, [decks]);
   const lastAIMatchDecks = useMemo(() => getLastAIMatchDecks(), []);
-  const [selectedPlayerDeck, setSelectedPlayerDeck] = useState<string | null>(lastAIMatchDecks.playerDeckId ?? displayDecks[0]?.id ?? null);
+  const lastPvpDeckId = useMemo(() => getLastPvpDeckId(), []);
+  const [selectedPlayerDeck, setSelectedPlayerDeck] = useState<string | null>(lastPvpDeckId ?? lastAIMatchDecks.playerDeckId ?? displayDecks[0]?.id ?? null);
   const [selectedAIDeck, setSelectedAIDeck] = useState<string | null>(lastAIMatchDecks.aiDeckId ?? displayDecks[1]?.id ?? displayDecks[0]?.id ?? null);
   const [activeDeckId, setActiveDeckId] = useState<string | null>(lastAIMatchDecks.playerDeckId ?? displayDecks[0]?.id ?? null);
   const [gameMode, setGameMode] = useState<'ai' | 'pvp'>('ai');
@@ -148,6 +158,24 @@ export default function MainMenuLobby({
     setError('');
     saveLastAIMatchDecks(playerDeck.id, aiDeck.id);
     onStartGame(playerDeck, aiDeck);
+  };
+
+  const handleStartPvp = () => {
+    if (!user) { onShowAuth(); return; }
+    if (!selectedPlayerDeck) {
+      setError('Selecione seu baralho para o PvP.');
+      return;
+    }
+
+    const playerDeck = displayDecks.find(deck => deck.id === selectedPlayerDeck);
+    if (!playerDeck) {
+      setError('Baralho invalido.');
+      return;
+    }
+
+    setError('');
+    saveLastPvpDeckId(playerDeck.id);
+    onStartPvp(playerDeck);
   };
 
   return (
@@ -391,20 +419,22 @@ export default function MainMenuLobby({
                       </button>
                     )
                   ) : (
-                    <button onClick={onStartPvp} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 font-black text-slate-950 shadow-lg shadow-amber-950/30 transition-colors hover:bg-amber-400 lg:w-auto">
+                    selectedPlayerDeck && (
+                    <button onClick={handleStartPvp} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 font-black text-slate-950 shadow-lg shadow-amber-950/30 transition-colors hover:bg-amber-400 lg:w-auto">
                       <Globe className="w-5 h-5" />
                       Buscar partida
                     </button>
+                    )
                   )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {displayDecks.map(deck => {
                     const hero = getCardById(deck.heroId);
                     const isPlayerDeck = selectedPlayerDeck === deck.id;
-                    const isAiDeck = selectedAIDeck === deck.id;
+                    const isAiDeck = gameMode === 'ai' && selectedAIDeck === deck.id;
                     const isActive = activeDeckId === deck.id;
                     const isDefaultDeck = defaultDeckIds.has(deck.id);
-                    const isSharedDeck = isPlayerDeck && isAiDeck;
+                    const isSharedDeck = gameMode === 'ai' && isPlayerDeck && isAiDeck;
                     const cardClass = isSharedDeck
                       ? 'border-transparent bg-slate-900/50 shadow-lg shadow-black/20'
                       : isPlayerDeck
@@ -448,7 +478,7 @@ export default function MainMenuLobby({
                           </div>
                         </button>
                         {isActive && (
-                          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <div className={`mt-3 grid grid-cols-1 gap-2 ${gameMode === 'ai' ? 'sm:grid-cols-2' : ''}`}>
                             <button
                               onClick={() => {
                                 setSelectedPlayerDeck(deck.id);
@@ -461,23 +491,24 @@ export default function MainMenuLobby({
                               }`}
                             >
                               <User className="h-3.5 w-3.5" />
-                              Usar comigo
+                              {gameMode === 'pvp' ? 'Usar no PvP' : 'Usar comigo'}
                             </button>
-                            <button
-                              onClick={() => {
-                                setSelectedAIDeck(deck.id);
-                                setError('');
-                              }}
-                              disabled={gameMode !== 'ai'}
-                              className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-black transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                                isAiDeck
-                                  ? 'border border-red-500/60 bg-red-500/20 text-red-100'
-                                  : 'border border-red-900/60 bg-red-950/50 text-red-200 hover:bg-red-900/60'
-                              }`}
-                            >
-                              <Shield className="h-3.5 w-3.5" />
-                              Usar na IA
-                            </button>
+                            {gameMode === 'ai' && (
+                              <button
+                                onClick={() => {
+                                  setSelectedAIDeck(deck.id);
+                                  setError('');
+                                }}
+                                className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-black transition-colors ${
+                                  isAiDeck
+                                    ? 'border border-red-500/60 bg-red-500/20 text-red-100'
+                                    : 'border border-red-900/60 bg-red-950/50 text-red-200 hover:bg-red-900/60'
+                                }`}
+                              >
+                                <Shield className="h-3.5 w-3.5" />
+                                Usar na IA
+                              </button>
+                            )}
                           </div>
                         )}
                         {isDefaultDeck ? (
