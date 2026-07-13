@@ -13,6 +13,17 @@ export type MissionMetric =
   | 'end_turns'
   | 'declare_attacks';
 
+export type AchievementMetric =
+  | 'total_matches'
+  | 'ai_wins'
+  | 'pvp_wins'
+  | 'total_wins'
+  | 'play_units'
+  | 'cast_spells'
+  | 'equip_items'
+  | 'play_terrains'
+  | 'declare_attacks';
+
 export interface MissionDefinition {
   id: string;
   title: string;
@@ -42,6 +53,16 @@ export interface LevelRewardDefinition {
   playmatId?: string;
 }
 
+export interface AchievementDefinition {
+  id: string;
+  title: string;
+  description: string;
+  metric: AchievementMetric;
+  target: number;
+  xpReward: number;
+  goldReward: number;
+}
+
 export interface PlayerProgress {
   player_id: string;
   level: number;
@@ -51,6 +72,8 @@ export interface PlayerProgress {
   daily_mission_date: string;
   mission_progress: Record<string, number>;
   completed_daily_missions: string[];
+  achievement_progress: Record<string, number>;
+  completed_achievements: string[];
   supporter: boolean;
   equipped_profile_frame: string;
   unlocked_profile_frames: string[];
@@ -168,6 +191,81 @@ export const DAILY_FIRST_WIN_BONUSES: FirstWinBonusDefinition[] = [
     mode: 'pvp',
     xpReward: 140,
     goldReward: 75,
+  },
+];
+
+export const ACHIEVEMENTS: AchievementDefinition[] = [
+  {
+    id: 'ach_first_pvp_win',
+    title: 'Primeiro duelo vencido',
+    description: 'Venca sua primeira partida PvP.',
+    metric: 'pvp_wins',
+    target: 1,
+    xpReward: 200,
+    goldReward: 150,
+  },
+  {
+    id: 'ach_ai_10_wins',
+    title: 'Treinamento consistente',
+    description: 'Venca 10 partidas contra a IA.',
+    metric: 'ai_wins',
+    target: 10,
+    xpReward: 250,
+    goldReward: 200,
+  },
+  {
+    id: 'ach_pvp_5_wins',
+    title: 'Duelista em ascensao',
+    description: 'Venca 5 partidas PvP.',
+    metric: 'pvp_wins',
+    target: 5,
+    xpReward: 350,
+    goldReward: 300,
+  },
+  {
+    id: 'ach_25_matches',
+    title: 'Presenca na arena',
+    description: 'Jogue 25 partidas.',
+    metric: 'total_matches',
+    target: 25,
+    xpReward: 300,
+    goldReward: 250,
+  },
+  {
+    id: 'ach_50_units',
+    title: 'Comandante de tropas',
+    description: 'Jogue 50 unidades.',
+    metric: 'play_units',
+    target: 50,
+    xpReward: 250,
+    goldReward: 225,
+  },
+  {
+    id: 'ach_40_spells',
+    title: 'Mestre dos feitiços',
+    description: 'Use 40 feiticos.',
+    metric: 'cast_spells',
+    target: 40,
+    xpReward: 250,
+    goldReward: 225,
+  },
+  {
+    id: 'ach_20_equips',
+    title: 'Arsenal preparado',
+    description: 'Equipe 20 itens ou montarias.',
+    metric: 'equip_items',
+    target: 20,
+    xpReward: 220,
+    goldReward: 200,
+  },
+  {
+    id: 'ach_100_attacks',
+    title: 'Pressao sem descanso',
+    description: 'Declare 100 ataques.',
+    metric: 'declare_attacks',
+    target: 100,
+    xpReward: 400,
+    goldReward: 350,
   },
 ];
 
@@ -438,6 +536,20 @@ function getMetricGain(metric: MissionMetric, input: MatchProgressInput) {
   return 0;
 }
 
+function getAchievementGain(metric: AchievementMetric, input: MatchProgressInput) {
+  const stats = input.stats ?? emptyMatchStats();
+  if (metric === 'total_matches') return 1;
+  if (metric === 'ai_wins') return input.mode === 'ai' && input.result === 'win' ? 1 : 0;
+  if (metric === 'pvp_wins') return input.mode === 'pvp' && input.result === 'win' ? 1 : 0;
+  if (metric === 'total_wins') return input.result === 'win' ? 1 : 0;
+  if (metric === 'play_units') return stats.unitsPlayed;
+  if (metric === 'cast_spells') return stats.spellsCast;
+  if (metric === 'equip_items') return stats.itemsEquipped;
+  if (metric === 'play_terrains') return stats.terrainsPlayed;
+  if (metric === 'declare_attacks') return stats.attacksDeclared;
+  return 0;
+}
+
 function unlockedFramesForLevel(level: number) {
   return Array.from(new Set([
     'default',
@@ -475,6 +587,8 @@ export function defaultPlayerProgress(playerId: string): PlayerProgress {
     daily_mission_date: getTodayKey(),
     mission_progress: {},
     completed_daily_missions: [],
+    achievement_progress: {},
+    completed_achievements: [],
     supporter: false,
     equipped_profile_frame: 'default',
     unlocked_profile_frames: ['default'],
@@ -506,6 +620,8 @@ export function localTestPlayerProgress(playerId: string): PlayerProgress {
       ...DAILY_MISSIONS.map(mission => mission.id),
       ...DAILY_FIRST_WIN_BONUSES.map(bonus => bonus.id),
     ],
+    achievement_progress: Object.fromEntries(ACHIEVEMENTS.map(achievement => [achievement.id, achievement.target])),
+    completed_achievements: ACHIEVEMENTS.map(achievement => achievement.id),
     supporter: true,
     equipped_profile_frame: 'sapphire',
     unlocked_profile_frames: PROFILE_FRAMES.map(frame => frame.id),
@@ -734,11 +850,15 @@ export async function saveMatchProgress(input: MatchProgressInput) {
   const sameDay = current?.daily_mission_date === today;
   const currentProgress = sameDay ? current?.mission_progress ?? {} : {};
   const currentCompleted = sameDay ? current?.completed_daily_missions ?? [] : [];
+  const currentAchievementProgress = current?.achievement_progress ?? {};
+  const currentAchievements = current?.completed_achievements ?? [];
   const completedSet = new Set(currentCompleted);
+  const completedAchievementsSet = new Set(currentAchievements);
   let xpGain = input.mode === 'pvp' ? 20 : 10;
   let goldGain = input.mode === 'pvp' ? 20 : 5;
   if (input.result === 'win') goldGain += input.mode === 'pvp' ? 20 : 5;
   const nextProgress = { ...currentProgress };
+  const nextAchievementProgress = { ...currentAchievementProgress };
 
   DAILY_FIRST_WIN_BONUSES.forEach(bonus => {
     if (completedSet.has(bonus.id)) return;
@@ -763,6 +883,20 @@ export async function saveMatchProgress(input: MatchProgressInput) {
     }
   });
 
+  ACHIEVEMENTS.forEach(achievement => {
+    if (completedAchievementsSet.has(achievement.id)) return;
+    const gain = getAchievementGain(achievement.metric, input);
+    if (gain <= 0) return;
+
+    const nextValue = Math.min(achievement.target, (nextAchievementProgress[achievement.id] ?? 0) + gain);
+    nextAchievementProgress[achievement.id] = nextValue;
+    if (nextValue >= achievement.target) {
+      completedAchievementsSet.add(achievement.id);
+      xpGain += achievement.xpReward;
+      goldGain += achievement.goldReward;
+    }
+  });
+
   const previousLevel = current?.level ?? calculateLevelFromXp(current?.total_xp ?? 0).level;
   const nextTotalXp = (current?.total_xp ?? 0) + xpGain;
   const levelInfo = calculateLevelFromXp(nextTotalXp);
@@ -783,9 +917,7 @@ export async function saveMatchProgress(input: MatchProgressInput) {
     ...unlockedPlaymatsForLevel(levelInfo.level),
   ]));
 
-  const { error } = await supabase
-    .from('player_progress')
-    .upsert({
+  const payload = {
       player_id: input.playerId,
       level: levelInfo.level,
       xp: levelInfo.xp,
@@ -794,6 +926,8 @@ export async function saveMatchProgress(input: MatchProgressInput) {
       daily_mission_date: today,
       mission_progress: nextProgress,
       completed_daily_missions: Array.from(completedSet),
+      achievement_progress: nextAchievementProgress,
+      completed_achievements: Array.from(completedAchievementsSet),
       supporter: current?.supporter ?? false,
       equipped_profile_frame: current?.equipped_profile_frame ?? 'default',
       unlocked_profile_frames: unlockedFrames,
@@ -802,13 +936,18 @@ export async function saveMatchProgress(input: MatchProgressInput) {
       equipped_playmat: current?.equipped_playmat ?? 'default',
       unlocked_playmats: unlockedPlaymats,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'player_id' });
+  };
+
+  const { error } = await supabase
+    .from('player_progress')
+    .upsert(payload, { onConflict: 'player_id' });
 
   return {
     error: error?.message ?? null,
     xpGain,
     goldGain,
     completedMissions: Array.from(completedSet),
+    completedAchievements: Array.from(completedAchievementsSet),
     levelRewards: reachedLevelRewards,
   };
 }
