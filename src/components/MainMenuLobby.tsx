@@ -67,9 +67,11 @@ export default function MainMenuLobby({
   const displayDecks = useMemo(() => decks.length > 0 ? decks : DEFAULT_DECKS, [decks]);
   const lastAIMatchDecks = useMemo(() => getLastAIMatchDecks(), []);
   const lastPvpDeckId = useMemo(() => getLastPvpDeckId(), []);
-  const [selectedPlayerDeck, setSelectedPlayerDeck] = useState<string | null>(lastPvpDeckId ?? lastAIMatchDecks.playerDeckId ?? displayDecks[0]?.id ?? null);
+  const [selectedAiPlayerDeck, setSelectedAiPlayerDeck] = useState<string | null>(lastAIMatchDecks.playerDeckId ?? displayDecks[0]?.id ?? null);
   const [selectedAIDeck, setSelectedAIDeck] = useState<string | null>(lastAIMatchDecks.aiDeckId ?? displayDecks[1]?.id ?? displayDecks[0]?.id ?? null);
-  const [activeDeckId, setActiveDeckId] = useState<string | null>(lastAIMatchDecks.playerDeckId ?? displayDecks[0]?.id ?? null);
+  const [selectedPvpDeck, setSelectedPvpDeck] = useState<string | null>(lastPvpDeckId ?? displayDecks[0]?.id ?? null);
+  const [activeAIDeckId, setActiveAIDeckId] = useState<string | null>(lastAIMatchDecks.playerDeckId ?? displayDecks[0]?.id ?? null);
+  const [activePvpDeckId, setActivePvpDeckId] = useState<string | null>(lastPvpDeckId ?? displayDecks[0]?.id ?? null);
   const [gameMode, setGameMode] = useState<'ai' | 'pvp'>('ai');
   const [error, setError] = useState('');
   const [playerProgress, setPlayerProgress] = useState<PlayerProgress | null>(null);
@@ -85,12 +87,16 @@ export default function MainMenuLobby({
   const winRate = playedMatches > 0 ? Math.round(((profile?.wins ?? 0) / playedMatches) * 100) : 0;
   const deckCardCount = (deck?: DeckDefinition | null) =>
     deck ? deck.coreCards.reduce((sum, card) => sum + card.count, 0) + deck.neutralCards.reduce((sum, card) => sum + card.count, 0) : 0;
+  const currentPlayerDeckId = gameMode === 'ai' ? selectedAiPlayerDeck : selectedPvpDeck;
+  const currentActiveDeckId = gameMode === 'ai' ? activeAIDeckId : activePvpDeckId;
 
   useEffect(() => {
     if (displayDecks.length === 0) {
-      setSelectedPlayerDeck(null);
+      setSelectedAiPlayerDeck(null);
       setSelectedAIDeck(null);
-      setActiveDeckId(null);
+      setSelectedPvpDeck(null);
+      setActiveAIDeckId(null);
+      setActivePvpDeckId(null);
       return;
     }
 
@@ -98,10 +104,16 @@ export default function MainMenuLobby({
     const fallbackPlayerDeck = displayDecks[0]?.id ?? null;
     const fallbackAIDeck = displayDecks[1]?.id ?? fallbackPlayerDeck;
 
-    if (!selectedPlayerDeck || !deckIds.has(selectedPlayerDeck)) setSelectedPlayerDeck(fallbackPlayerDeck);
+    if (!selectedAiPlayerDeck || !deckIds.has(selectedAiPlayerDeck)) setSelectedAiPlayerDeck(fallbackPlayerDeck);
     if (!selectedAIDeck || !deckIds.has(selectedAIDeck)) setSelectedAIDeck(fallbackAIDeck);
-    if (!activeDeckId || !deckIds.has(activeDeckId)) setActiveDeckId(selectedPlayerDeck && deckIds.has(selectedPlayerDeck) ? selectedPlayerDeck : fallbackPlayerDeck);
-  }, [activeDeckId, displayDecks, selectedAIDeck, selectedPlayerDeck]);
+    if (!selectedPvpDeck || !deckIds.has(selectedPvpDeck)) setSelectedPvpDeck(fallbackPlayerDeck);
+    if (!activeAIDeckId || !deckIds.has(activeAIDeckId)) {
+      setActiveAIDeckId(selectedAiPlayerDeck && deckIds.has(selectedAiPlayerDeck) ? selectedAiPlayerDeck : fallbackPlayerDeck);
+    }
+    if (!activePvpDeckId || !deckIds.has(activePvpDeckId)) {
+      setActivePvpDeckId(selectedPvpDeck && deckIds.has(selectedPvpDeck) ? selectedPvpDeck : fallbackPlayerDeck);
+    }
+  }, [activeAIDeckId, activePvpDeckId, displayDecks, selectedAIDeck, selectedAiPlayerDeck, selectedPvpDeck]);
 
   useEffect(() => {
     if (!user) {
@@ -124,8 +136,11 @@ export default function MainMenuLobby({
     if (deckId.startsWith('deck-')) {
       deleteDeck(deckId);
       const newDecks = getSavedDecks();
-      if (selectedPlayerDeck === deckId) setSelectedPlayerDeck(newDecks[0]?.id ?? null);
+      if (selectedAiPlayerDeck === deckId) setSelectedAiPlayerDeck(newDecks[0]?.id ?? null);
       if (selectedAIDeck === deckId) setSelectedAIDeck(newDecks[0]?.id ?? null);
+      if (selectedPvpDeck === deckId) setSelectedPvpDeck(newDecks[0]?.id ?? null);
+      if (activeAIDeckId === deckId) setActiveAIDeckId(newDecks[0]?.id ?? null);
+      if (activePvpDeckId === deckId) setActivePvpDeckId(newDecks[0]?.id ?? null);
     } else {
       await onDeleteDeck(deckId);
     }
@@ -143,12 +158,12 @@ export default function MainMenuLobby({
   };
 
   const handleStartGame = () => {
-    if (!selectedPlayerDeck || !selectedAIDeck) {
+    if (!selectedAiPlayerDeck || !selectedAIDeck) {
       setError('Selecione os baralhos para ambos os jogadores.');
       return;
     }
 
-    const playerDeck = displayDecks.find(deck => deck.id === selectedPlayerDeck);
+    const playerDeck = displayDecks.find(deck => deck.id === selectedAiPlayerDeck);
     const aiDeck = displayDecks.find(deck => deck.id === selectedAIDeck);
     if (!playerDeck || !aiDeck) {
       setError('Baralho invalido.');
@@ -162,12 +177,12 @@ export default function MainMenuLobby({
 
   const handleStartPvp = () => {
     if (!user) { onShowAuth(); return; }
-    if (!selectedPlayerDeck) {
+    if (!selectedPvpDeck) {
       setError('Selecione seu baralho para o PvP.');
       return;
     }
 
-    const playerDeck = displayDecks.find(deck => deck.id === selectedPlayerDeck);
+    const playerDeck = displayDecks.find(deck => deck.id === selectedPvpDeck);
     if (!playerDeck) {
       setError('Baralho invalido.');
       return;
@@ -411,7 +426,7 @@ export default function MainMenuLobby({
                     <span className="text-xs text-slate-500">{displayDecks.length} disponiveis</span>
                   </div>
                   {gameMode === 'ai' ? (
-                    selectedPlayerDeck && selectedAIDeck && (
+                    selectedAiPlayerDeck && selectedAIDeck && (
                       <button onClick={handleStartGame} disabled={decksLoading} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 font-black text-slate-950 shadow-lg shadow-amber-950/30 transition-colors hover:bg-amber-400 disabled:cursor-wait disabled:opacity-60 lg:w-auto">
                         <Swords className="w-5 h-5" />
                         Jogar agora
@@ -419,7 +434,7 @@ export default function MainMenuLobby({
                       </button>
                     )
                   ) : (
-                    selectedPlayerDeck && (
+                    selectedPvpDeck && (
                     <button onClick={handleStartPvp} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 font-black text-slate-950 shadow-lg shadow-amber-950/30 transition-colors hover:bg-amber-400 lg:w-auto">
                       <Globe className="w-5 h-5" />
                       Buscar partida
@@ -430,9 +445,9 @@ export default function MainMenuLobby({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {displayDecks.map(deck => {
                     const hero = getCardById(deck.heroId);
-                    const isPlayerDeck = selectedPlayerDeck === deck.id;
+                    const isPlayerDeck = currentPlayerDeckId === deck.id;
                     const isAiDeck = gameMode === 'ai' && selectedAIDeck === deck.id;
-                    const isActive = activeDeckId === deck.id;
+                    const isActive = currentActiveDeckId === deck.id;
                     const isDefaultDeck = defaultDeckIds.has(deck.id);
                     const isSharedDeck = gameMode === 'ai' && isPlayerDeck && isAiDeck;
                     const cardClass = isSharedDeck
@@ -452,7 +467,16 @@ export default function MainMenuLobby({
                       : undefined;
                     return (
                       <div key={deck.id} style={sharedBorderStyle} className={`rounded-xl border p-3 transition-all ${cardClass}`}>
-                        <button onClick={() => setActiveDeckId(deck.id)} className="w-full text-left flex items-center gap-3">
+                        <button
+                          onClick={() => {
+                            if (gameMode === 'ai') {
+                              setActiveAIDeckId(deck.id);
+                            } else {
+                              setActivePvpDeckId(deck.id);
+                            }
+                          }}
+                          className="w-full text-left flex items-center gap-3"
+                        >
                           <div className="w-11 h-14 rounded-lg bg-gradient-to-br from-amber-800 to-slate-950 border border-amber-500/40 flex items-center justify-center shrink-0">
                             <Star className="w-5 h-5 text-amber-300" />
                           </div>
@@ -481,7 +505,11 @@ export default function MainMenuLobby({
                           <div className={`mt-3 grid grid-cols-1 gap-2 ${gameMode === 'ai' ? 'sm:grid-cols-2' : ''}`}>
                             <button
                               onClick={() => {
-                                setSelectedPlayerDeck(deck.id);
+                                if (gameMode === 'ai') {
+                                  setSelectedAiPlayerDeck(deck.id);
+                                } else {
+                                  setSelectedPvpDeck(deck.id);
+                                }
                                 setError('');
                               }}
                               className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-black transition-colors ${
