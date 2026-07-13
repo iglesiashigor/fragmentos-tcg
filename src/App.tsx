@@ -42,6 +42,7 @@ function AppContent() {
   const [lastPlayerDeck, setLastPlayerDeck] = useState<DeckDefinition | null>(null);
   const [lastAIDeck, setLastAIDeck] = useState<DeckDefinition | null>(null);
   const [pendingDecks, setPendingDecks] = useState<{ player: DeckDefinition; ai: DeckDefinition } | null>(null);
+  const [pvpDeck, setPvpDeck] = useState<DeckDefinition | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [gameMode, setGameMode] = useState<'ai' | 'pvp'>('ai');
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -93,7 +94,8 @@ function AppContent() {
     setScreen('coinFlip');
   }, []);
 
-  const handleStartPvp = useCallback(() => {
+  const handleStartPvp = useCallback((playerDeck: DeckDefinition) => {
+    setPvpDeck(playerDeck);
     setGameMode('pvp');
     setScreen('matchmaking');
   }, []);
@@ -230,6 +232,7 @@ function AppContent() {
           onGameStart={handleStartPvpGame}
           user={user}
           decks={decks}
+          selectedDeckId={pvpDeck?.id}
           onShowAuth={() => setShowAuth(true)}
         />
       )}
