@@ -32,6 +32,16 @@ export interface FirstWinBonusDefinition {
   goldReward: number;
 }
 
+export interface LevelRewardDefinition {
+  level: number;
+  title: string;
+  description: string;
+  goldReward?: number;
+  profileFrameId?: string;
+  cardFrameId?: string;
+  playmatId?: string;
+}
+
 export interface PlayerProgress {
   player_id: string;
   level: number;
@@ -207,16 +217,37 @@ export const CARD_FRAMES = [
   {
     id: 'ruby',
     name: 'Cor Rubi',
-    description: 'Pinta suas cartas com tons de rubi.',
+    description: 'Pinta suas cartas com tons de rubi intenso.',
     price: 750,
     className: 'card-cosmetic-ruby',
   },
   {
     id: 'emerald',
     name: 'Cor Esmeralda',
-    description: 'Pinta suas cartas com tons de esmeralda.',
+    description: 'Pinta suas cartas com tons de esmeralda viva.',
     price: 750,
     className: 'card-cosmetic-emerald',
+  },
+  {
+    id: 'obsidian',
+    name: 'Cor Obsidiana',
+    description: 'Pinta suas cartas com tons escuros e metalicos.',
+    price: 950,
+    className: 'card-cosmetic-obsidian',
+  },
+  {
+    id: 'amethyst',
+    name: 'Cor Ametista',
+    description: 'Pinta suas cartas com tons misticos de ametista.',
+    price: 1100,
+    className: 'card-cosmetic-amethyst',
+  },
+  {
+    id: 'frost',
+    name: 'Cor Gelo',
+    description: 'Pinta suas cartas com tons frios e cristalinos.',
+    price: 1250,
+    className: 'card-cosmetic-frost',
   },
 ];
 
@@ -248,6 +279,93 @@ export const PLAYMATS = [
     description: 'Um campo marcado por brasas.',
     price: 1200,
     className: 'playmat-ember-ruins',
+  },
+  {
+    id: 'ancient_temple',
+    name: 'Templo Antigo',
+    description: 'Um campo solene com pedra antiga e luz dourada.',
+    price: 1400,
+    className: 'playmat-ancient-temple',
+  },
+  {
+    id: 'void_rift',
+    name: 'Abismo',
+    description: 'Um campo sombrio com energia instavel.',
+    price: 1600,
+    className: 'playmat-void-rift',
+  },
+  {
+    id: 'arcane_library',
+    name: 'Biblioteca Arcana',
+    description: 'Um campo de duelo cercado por conhecimento antigo.',
+    price: 1800,
+    className: 'playmat-arcane-library',
+  },
+];
+
+export const LEVEL_REWARDS: LevelRewardDefinition[] = [
+  {
+    level: 2,
+    title: 'Bolsa de recruta',
+    description: 'Ganhe gold extra para comecar a montar sua colecao.',
+    goldReward: 100,
+  },
+  {
+    level: 3,
+    title: 'Moldura Ambar',
+    description: 'Libera a moldura de perfil Ambar.',
+    goldReward: 150,
+    profileFrameId: 'amber',
+  },
+  {
+    level: 5,
+    title: 'Cor Ambar',
+    description: 'Libera a cor Ambar para suas cartas.',
+    cardFrameId: 'amber',
+  },
+  {
+    level: 6,
+    title: 'Moldura Safira',
+    description: 'Libera a moldura de perfil Safira.',
+    goldReward: 200,
+    profileFrameId: 'sapphire',
+  },
+  {
+    level: 8,
+    title: 'Reserva de duelo',
+    description: 'Ganhe gold para comprar cosmeticos na loja.',
+    goldReward: 250,
+  },
+  {
+    level: 10,
+    title: 'Floresta Arcana',
+    description: 'Libera um campo de jogo cosmetico.',
+    goldReward: 300,
+    playmatId: 'arcane_forest',
+  },
+  {
+    level: 12,
+    title: 'Tesouro de cristal',
+    description: 'Ganhe gold para escolher sua proxima personalizacao.',
+    goldReward: 350,
+  },
+  {
+    level: 15,
+    title: 'Marca de veterano',
+    description: 'Ganhe uma recompensa alta em gold.',
+    goldReward: 450,
+  },
+  {
+    level: 18,
+    title: 'Reserva preciosa',
+    description: 'Ganhe gold para cosmeticos especiais.',
+    goldReward: 600,
+  },
+  {
+    level: 20,
+    title: 'Mestre dos Fragmentos',
+    description: 'Ganhe uma grande recompensa em gold.',
+    goldReward: 900,
   },
 ];
 
@@ -321,10 +439,30 @@ function getMetricGain(metric: MissionMetric, input: MatchProgressInput) {
 }
 
 function unlockedFramesForLevel(level: number) {
-  const frames = ['default'];
-  if (level >= 3) frames.push('amber');
-  if (level >= 6) frames.push('sapphire');
-  return frames;
+  return Array.from(new Set([
+    'default',
+    ...LEVEL_REWARDS
+      .filter(reward => reward.level <= level && reward.profileFrameId)
+      .map(reward => reward.profileFrameId as string),
+  ]));
+}
+
+function unlockedCardFramesForLevel(level: number) {
+  return Array.from(new Set([
+    'default',
+    ...LEVEL_REWARDS
+      .filter(reward => reward.level <= level && reward.cardFrameId)
+      .map(reward => reward.cardFrameId as string),
+  ]));
+}
+
+function unlockedPlaymatsForLevel(level: number) {
+  return Array.from(new Set([
+    'default',
+    ...LEVEL_REWARDS
+      .filter(reward => reward.level <= level && reward.playmatId)
+      .map(reward => reward.playmatId as string),
+  ]));
 }
 
 export function defaultPlayerProgress(playerId: string): PlayerProgress {
@@ -625,11 +763,24 @@ export async function saveMatchProgress(input: MatchProgressInput) {
     }
   });
 
+  const previousLevel = current?.level ?? calculateLevelFromXp(current?.total_xp ?? 0).level;
   const nextTotalXp = (current?.total_xp ?? 0) + xpGain;
   const levelInfo = calculateLevelFromXp(nextTotalXp);
+  const reachedLevelRewards = LEVEL_REWARDS.filter(reward => reward.level > previousLevel && reward.level <= levelInfo.level);
+  const levelGoldGain = reachedLevelRewards.reduce((sum, reward) => sum + (reward.goldReward ?? 0), 0);
+  goldGain += levelGoldGain;
+
   const unlockedFrames = Array.from(new Set([
     ...(current?.unlocked_profile_frames ?? ['default']),
     ...unlockedFramesForLevel(levelInfo.level),
+  ]));
+  const unlockedCardFrames = Array.from(new Set([
+    ...(current?.unlocked_card_frames ?? ['default']),
+    ...unlockedCardFramesForLevel(levelInfo.level),
+  ]));
+  const unlockedPlaymats = Array.from(new Set([
+    ...(current?.unlocked_playmats ?? ['default']),
+    ...unlockedPlaymatsForLevel(levelInfo.level),
   ]));
 
   const { error } = await supabase
@@ -647,11 +798,17 @@ export async function saveMatchProgress(input: MatchProgressInput) {
       equipped_profile_frame: current?.equipped_profile_frame ?? 'default',
       unlocked_profile_frames: unlockedFrames,
       equipped_card_frame: current?.equipped_card_frame ?? 'default',
-      unlocked_card_frames: current?.unlocked_card_frames ?? ['default'],
+      unlocked_card_frames: unlockedCardFrames,
       equipped_playmat: current?.equipped_playmat ?? 'default',
-      unlocked_playmats: current?.unlocked_playmats ?? ['default'],
+      unlocked_playmats: unlockedPlaymats,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'player_id' });
 
-  return { error: error?.message ?? null, xpGain, goldGain, completedMissions: Array.from(completedSet) };
+  return {
+    error: error?.message ?? null,
+    xpGain,
+    goldGain,
+    completedMissions: Array.from(completedSet),
+    levelRewards: reachedLevelRewards,
+  };
 }

@@ -21,6 +21,7 @@ import {
   equipProfileFrame,
   fetchPlayerProgress,
   getTodayKey,
+  LEVEL_REWARDS,
   NAME_CHANGE_ITEM,
   PLAYMATS,
   PlayerProgress,
@@ -147,6 +148,8 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
   const equippedCardFrame = progress?.equipped_card_frame ?? 'default';
   const equippedPlaymat = progress?.equipped_playmat ?? 'default';
   const gold = progress?.gold ?? 0;
+  const visibleLevelRewards = LEVEL_REWARDS.filter(reward => reward.level >= levelInfo.level).slice(0, 5);
+  const levelRewardsToShow = visibleLevelRewards.length > 0 ? visibleLevelRewards : LEVEL_REWARDS.slice(-5);
 
   const updateProgress = (nextProgress: PlayerProgress) => {
     setProgress(nextProgress);
@@ -383,6 +386,42 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
                 <StatBox label="Vitorias" value={summary.aiWins} tone="emerald" />
                 <StatBox label="Derrotas" value={summary.aiLosses} tone="rose" />
                 <StatBox label="Empates" value={summary.aiDraws} tone="slate" />
+              </div>
+            </Panel>
+            <Panel title="Recompensas de nivel" icon={<Crown className="w-4 h-4 text-amber-300" />}>
+              <div className="space-y-2">
+                {levelRewardsToShow.map(reward => {
+                  const unlocked = levelInfo.level >= reward.level;
+                  const cardFrame = CARD_FRAMES.find(frame => frame.id === reward.cardFrameId);
+                  const profileFrame = PROFILE_FRAMES.find(frame => frame.id === reward.profileFrameId);
+                  const playmat = PLAYMATS.find(item => item.id === reward.playmatId);
+                  const rewardParts = [
+                    reward.goldReward ? `${reward.goldReward} gold` : null,
+                    profileFrame ? profileFrame.name : null,
+                    cardFrame ? cardFrame.name : null,
+                    playmat ? playmat.name : null,
+                  ].filter(Boolean);
+
+                  return (
+                    <div key={`${reward.level}-${reward.title}`} className={`rounded-xl border p-3 ${unlocked ? 'border-emerald-500/30 bg-emerald-950/15' : 'border-slate-800 bg-slate-950/60'}`}>
+                      <div className="flex items-start gap-3">
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-sm font-black ${unlocked ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200' : 'border-amber-400/30 bg-amber-500/10 text-amber-200'}`}>
+                          {reward.level}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="text-sm font-black text-white">{reward.title}</h3>
+                            <span className={`shrink-0 text-[10px] font-black uppercase tracking-wide ${unlocked ? 'text-emerald-300' : 'text-slate-500'}`}>
+                              {unlocked ? 'Liberado' : `Nivel ${reward.level}`}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 text-xs text-slate-500">{reward.description}</p>
+                          <p className="mt-2 text-xs font-bold text-amber-200">{rewardParts.join(' + ')}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </Panel>
             <Panel title="Cosmeticos" icon={<Award className="w-4 h-4 text-amber-300" />}>
