@@ -11,6 +11,7 @@ import {
   summarizeHistory,
 } from '../lib/ranking';
 import {
+  ACHIEVEMENTS,
   calculateLevelFromXp,
   CARD_FRAMES,
   DAILY_FIRST_WIN_BONUSES,
@@ -41,7 +42,7 @@ interface PlayerProfileProps {
   initialTab?: ProfileTab;
 }
 
-export type ProfileTab = 'overview' | 'missions' | 'shop' | 'history' | 'ranking';
+export type ProfileTab = 'overview' | 'missions' | 'achievements' | 'shop' | 'history' | 'ranking';
 
 function resultLabel(result: PlayerMatchResult['result']) {
   if (result === 'win') return 'Vitoria';
@@ -141,6 +142,8 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
   const today = getTodayKey();
   const missionProgress = progress?.daily_mission_date === today ? progress.mission_progress : {};
   const completedMissions = new Set(progress?.daily_mission_date === today ? progress.completed_daily_missions : []);
+  const achievementProgress = progress?.achievement_progress ?? {};
+  const completedAchievements = new Set(progress?.completed_achievements ?? []);
   const equippedFrame = PROFILE_FRAMES.find(frame => frame.id === progress?.equipped_profile_frame) ?? PROFILE_FRAMES[0];
   const unlockedProfileFrames = progress?.unlocked_profile_frames ?? ['default'];
   const unlockedCardFrames = progress?.unlocked_card_frames ?? ['default'];
@@ -349,6 +352,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
           {[
             ['overview', 'Resumo', Sparkles],
             ['missions', 'Missoes', Target],
+            ['achievements', 'Conquistas', Award],
             ['shop', 'Loja', ShoppingBag],
             ['history', 'Historico', Calendar],
             ['ranking', 'Ranking', Trophy],
@@ -529,6 +533,54 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
                           <div className="flex justify-between text-[11px] text-slate-500 mb-1">
                             <span>Progresso</span>
                             <span>{current}/{mission.target}</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-slate-900 border border-slate-800 overflow-hidden">
+                            <div className={`h-full ${done ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ width: `${percent}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Panel>
+        ) : tab === 'achievements' ? (
+          <Panel title="Conquistas permanentes" icon={<Award className="w-4 h-4 text-amber-300" />}>
+            <div className="mb-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-sm font-black text-white">Objetivos de longo prazo</h3>
+                  <p className="mt-1 text-xs text-slate-500">Essas conquistas nao resetam e rendem gold e XP quando completas.</p>
+                </div>
+                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-200">
+                  {completedAchievements.size}/{ACHIEVEMENTS.length} completas
+                </span>
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-3">
+              {ACHIEVEMENTS.map(achievement => {
+                const current = Math.min(achievement.target, achievementProgress[achievement.id] ?? 0);
+                const done = completedAchievements.has(achievement.id);
+                const percent = Math.min(100, Math.round((current / achievement.target) * 100));
+                return (
+                  <div key={achievement.id} className={`rounded-xl border p-4 ${done ? 'border-emerald-500/35 bg-emerald-950/20' : 'border-slate-800 bg-slate-950/60'}`}>
+                    <div className="flex items-start gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${done ? 'bg-emerald-500/20 border-emerald-400/40' : 'bg-slate-900 border-slate-700'}`}>
+                        {done ? <CheckCircle2 className="w-5 h-5 text-emerald-300" /> : <Award className="w-5 h-5 text-amber-300" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className="font-black text-white text-sm">{achievement.title}</h3>
+                            <p className="text-xs text-slate-400 mt-1">{achievement.description}</p>
+                          </div>
+                          <span className="shrink-0 text-xs font-bold text-blue-200">+{achievement.xpReward} XP / +{achievement.goldReward} gold</span>
+                        </div>
+                        <div className="mt-3">
+                          <div className="flex justify-between text-[11px] text-slate-500 mb-1">
+                            <span>{done ? 'Completa' : 'Progresso'}</span>
+                            <span>{current}/{achievement.target}</span>
                           </div>
                           <div className="h-2 rounded-full bg-slate-900 border border-slate-800 overflow-hidden">
                             <div className={`h-full ${done ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ width: `${percent}%` }} />
