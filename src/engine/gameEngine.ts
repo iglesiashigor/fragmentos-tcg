@@ -1297,7 +1297,7 @@ export function resolveSpellEffects(
   return s;
 }
 
-function processOnDefendEquipment(
+function processOnDefendItems(
   state: GameState,
   targetId: string,
   defenderIdx: PlayerIndex,
@@ -1356,12 +1356,96 @@ function processOnDefendEquipment(
   return { ...s, players: newPlayers };
 }
 
+function processOnDefendMount(
+  state: GameState,
+  targetId: string,
+  defenderIdx: PlayerIndex,
+): GameState {
+  const player = state.players[defenderIdx];
+  let s = state;
+
+  const processCard = (card: BattleCard): BattleCard => {
+    if (
+      card.instanceId !== targetId ||
+      !card.mount ||
+      card.mount.currentDurability <= 0
+    )
+      return card;
+
+    const mount = card.mount;
+    const onDefendEff = mount.effects.find((e) => e.timing === "onDefend");
+    if (!onDefendEff) return card;
+
+    let newCard = card;
+    if (onDefendEff.type === "defenseBonus" && onDefendEff.value) {
+      s = {
+        ...s,
+        log: [
+          ...s.log,
+          `${mount.name} concede +${onDefendEff.value} DEF a ${newCard.name}.`,
+        ],
+      };
+    }
+
+    const newDur = mount.currentDurability - 1;
+    if (newDur <= 0) {
+      const mountDef = getCardById(mount.cardId);
+      s = { ...s, log: [...s.log, `${mount.name} destruido!`] };
+      const newDiscard = mountDef ? [...player.discard, mountDef] : player.discard;
+      const newPlayers = [...s.players] as [PlayerState, PlayerState];
+      newPlayers[defenderIdx] = {
+        ...newPlayers[defenderIdx],
+        discard: newDiscard,
+      };
+      s = { ...s, players: newPlayers };
+      const { mount: _mount, ...cardWithoutMount } = newCard;
+      return cardWithoutMount;
+    }
+
+    return { ...newCard, mount: { ...mount, currentDurability: newDur } };
+  };
+
+  const newHero = processCard(player.hero);
+  const newUnits = player.units.map(processCard);
+
+  const newPlayers = [...s.players] as [PlayerState, PlayerState];
+  newPlayers[defenderIdx] = {
+    ...newPlayers[defenderIdx],
+    hero: newHero,
+    units: newUnits,
+  };
+  return { ...s, players: newPlayers };
+}
+
 function getDefenseBonus(card: BattleCard): number {
-  if (!card.equipment || card.equipment.currentDurability <= 0) return 0;
-  const eff = card.equipment.effects.find(
-    (e) => e.type === "defenseBonus" && e.timing === "onDefend",
+  const equipmentBonus =
+    card.equipment && card.equipment.currentDurability > 0
+      ? card.equipment.effects.find(
+          (e) => e.type === "defenseBonus" && e.timing === "onDefend",
+        )?.value ?? 0
+      : 0;
+  const mountBonus =
+    card.mount && card.mount.currentDurability > 0
+      ? card.mount.effects.find(
+          (e) => e.type === "defenseBonus" && e.timing === "onDefend",
+        )?.value ?? 0
+      : 0;
+
+  return equipmentBonus + mountBonus;
+}
+
+function canGainStealthOnAttack(attacker: BattleCard): boolean {
+  return Boolean(
+    attacker.mount?.currentDurability &&
+      attacker.mount.currentDurability > 0 &&
+      attacker.mount.effects.some(
+        (e) =>
+          e.timing === "onAttack" &&
+          e.type === "applyCondition" &&
+          e.condition === "stealth" &&
+          e.target === "self",
+      ),
   );
-  return eff?.value ?? 0;
 }
 
 export function dealDamageToTarget(
@@ -1390,7 +1474,8 @@ export function dealDamageToTarget(
       };
       if (finalDamage > 0)
         s = processDamageDealtTriggers(s, attackerPlayerIdx, targetId);
-      s = processOnDefendEquipment(s, targetId, pi2);
+      s = processOnDefendItems(s, targetId, pi2);
+      s = processOnDefendMount(s, targetId, pi2);
       s = checkGameOver(s);
       return s;
     }
@@ -1413,7 +1498,8 @@ export function dealDamageToTarget(
         };
         if (finalDamage > 0)
           s = processDamageDealtTriggers(s, attackerPlayerIdx, targetId);
-        s = processOnDefendEquipment(s, targetId, pi2);
+        s = processOnDefendItems(s, targetId, pi2);
+        s = processOnDefendMount(s, targetId, pi2);
         s = cleanDeadUnits(s, pi2);
         return s;
       }
@@ -1875,13 +1961,27 @@ export function resolveAttack(
             );
           }
           const newDur = newHeroAtkr.mount.currentDurability - 1;
-          newHeroAtkr =
-            newDur <= 0
-              ? { ...newHeroAtkr, mount: undefined }
-              : {
-                  ...newHeroAtkr,
-                  mount: { ...newHeroAtkr.mount, currentDurability: newDur },
-                };
+          if (newDur <= 0) {
+            const mountDef = getCardById(newHeroAtkr.mount.cardId);
+            const mountName = newHeroAtkr.mount.name;
+            newHeroAtkr = { ...newHeroAtkr, mount: undefined };
+            const np = s.players[attackerPlayerIdx];
+            const newPlayers2 = [...s.players] as [PlayerState, PlayerState];
+            newPlayers2[attackerPlayerIdx] = {
+              ...np,
+              discard: mountDef ? [...np.discard, mountDef] : np.discard,
+            };
+            s = {
+              ...s,
+              players: newPlayers2,
+              log: [...s.log, `${mountName} destruido!`],
+            };
+          } else {
+            newHeroAtkr = {
+              ...newHeroAtkr,
+              mount: { ...newHeroAtkr.mount, currentDurability: newDur },
+            };
+          }
         }
       }
     } else {
@@ -1934,16 +2034,33 @@ export function resolveAttack(
                 );
               }
               const newDur = newUnitsAtkr[i].mount!.currentDurability - 1;
-              newUnitsAtkr[i] =
-                newDur <= 0
-                  ? { ...newUnitsAtkr[i], mount: undefined }
-                  : {
-                      ...newUnitsAtkr[i],
-                      mount: {
-                        ...newUnitsAtkr[i].mount!,
-                        currentDurability: newDur,
-                      },
-                    };
+              if (newDur <= 0) {
+                const mountDef = getCardById(newUnitsAtkr[i].mount!.cardId);
+                const mountName = newUnitsAtkr[i].mount!.name;
+                newUnitsAtkr[i] = { ...newUnitsAtkr[i], mount: undefined };
+                const np = s.players[attackerPlayerIdx];
+                const newPlayers2 = [...s.players] as [
+                  PlayerState,
+                  PlayerState,
+                ];
+                newPlayers2[attackerPlayerIdx] = {
+                  ...np,
+                  discard: mountDef ? [...np.discard, mountDef] : np.discard,
+                };
+                s = {
+                  ...s,
+                  players: newPlayers2,
+                  log: [...s.log, `${mountName} destruido!`],
+                };
+              } else {
+                newUnitsAtkr[i] = {
+                  ...newUnitsAtkr[i],
+                  mount: {
+                    ...newUnitsAtkr[i].mount!,
+                    currentDurability: newDur,
+                  },
+                };
+              }
             }
           }
         }
@@ -1978,7 +2095,8 @@ export function canAttackTarget(
 
   if (targetIsHero) {
     if (!hasUnitsInField) return true;
-    if (hasCondition(attacker, "stealth")) return true;
+    if (hasCondition(attacker, "stealth") || canGainStealthOnAttack(attacker))
+      return true;
     return false;
   }
 
@@ -2190,7 +2308,8 @@ export function getValidAttackTargets(
   const defenderPlayerIdx = (1 - attackerPlayerIdx) as PlayerIndex;
   const defender = state.players[defenderPlayerIdx];
   const hasUnitsInField = defender.units.length > 0;
-  const hasStealth = hasCondition(attacker, "stealth");
+  const hasStealth =
+    hasCondition(attacker, "stealth") || canGainStealthOnAttack(attacker);
 
   if (!hasUnitsInField || hasStealth) {
     return [
