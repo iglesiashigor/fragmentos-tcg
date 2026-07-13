@@ -594,32 +594,57 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
             </div>
           </Panel>
         ) : tab === 'shop' ? (
-          <div className="grid lg:grid-cols-[1fr_1fr] gap-4">
-            <Panel title="Cores de carta" icon={<Palette className="w-4 h-4 text-amber-300" />}>
-              <div className="grid sm:grid-cols-2 gap-3">
-                {CARD_FRAMES.map(frame => {
-                  const owned = unlockedCardFrames.includes(frame.id);
-                  const equipped = equippedCardFrame === frame.id;
-                  const shopItem = SHOP_ITEMS.find(item => item.type === 'card_frame' && item.id === frame.id);
-                  return (
-                    <ShopCard
-                      key={frame.id}
-                      name={frame.name}
-                      description={frame.description}
-                      price={frame.price}
-                      owned={owned}
-                      equipped={equipped}
-                      canBuy={gold >= frame.price}
-                      disabled={savingShop !== null}
-                      onBuy={shopItem ? () => handlePurchase(shopItem) : undefined}
-                      onEquip={() => handleEquipCardFrame(frame.id)}
-                    >
-                      <div className={`w-16 h-24 rounded-lg bg-gradient-to-br from-slate-800 to-slate-950 border-2 border-slate-500 ${frame.className}`} />
-                    </ShopCard>
-                  );
-                })}
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-amber-500/25 bg-slate-950/65 p-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-200">Loja do jogador</p>
+                  <h2 className="mt-1 text-xl font-black text-white">Cosmeticos e servicos</h2>
+                  <p className="mt-1 text-sm text-slate-400">Use gold para liberar aparencias e pequenos servicos da conta.</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-center">
+                    <p className="text-lg font-black text-amber-100">{gold}</p>
+                    <p className="text-[10px] font-black uppercase tracking-wide text-amber-300">Gold</p>
+                  </div>
+                  <div className="rounded-xl border border-blue-500/25 bg-blue-500/10 px-4 py-3 text-center">
+                    <p className="text-lg font-black text-blue-100">{unlockedCardFrames.length}/{CARD_FRAMES.length}</p>
+                    <p className="text-[10px] font-black uppercase tracking-wide text-blue-300">Cores</p>
+                  </div>
+                  <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-center">
+                    <p className="text-lg font-black text-emerald-100">{unlockedPlaymats.length}/{PLAYMATS.length}</p>
+                    <p className="text-[10px] font-black uppercase tracking-wide text-emerald-300">Campos</p>
+                  </div>
+                </div>
               </div>
-            </Panel>
+            </div>
+
+            <div className="grid lg:grid-cols-[1fr_1fr] gap-4">
+              <Panel title="Cores de carta" icon={<Palette className="w-4 h-4 text-amber-300" />}>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {CARD_FRAMES.map(frame => {
+                    const owned = unlockedCardFrames.includes(frame.id);
+                    const equipped = equippedCardFrame === frame.id;
+                    const shopItem = SHOP_ITEMS.find(item => item.type === 'card_frame' && item.id === frame.id);
+                    return (
+                      <ShopCard
+                        key={frame.id}
+                        name={frame.name}
+                        description={frame.description}
+                        price={frame.price}
+                        owned={owned}
+                        equipped={equipped}
+                        canBuy={gold >= frame.price}
+                        disabled={savingShop !== null}
+                        onBuy={shopItem ? () => handlePurchase(shopItem) : undefined}
+                        onEquip={() => handleEquipCardFrame(frame.id)}
+                      >
+                        <div className={`w-16 h-24 rounded-lg bg-gradient-to-br from-slate-800 to-slate-950 border-2 border-slate-500 ${frame.className}`} />
+                      </ShopCard>
+                    );
+                  })}
+                </div>
+              </Panel>
 
             <Panel title="Campos de batalha" icon={<Sparkles className="w-4 h-4 text-blue-300" />}>
               <div className="grid sm:grid-cols-2 gap-3">
@@ -682,6 +707,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
                   </div>
                 </div>
               </Panel>
+            </div>
             </div>
           </div>
         ) : tab === 'history' ? (

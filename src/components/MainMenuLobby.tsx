@@ -90,6 +90,8 @@ export default function MainMenuLobby({
     deck ? deck.coreCards.reduce((sum, card) => sum + card.count, 0) + deck.neutralCards.reduce((sum, card) => sum + card.count, 0) : 0;
   const currentPlayerDeckId = gameMode === 'ai' ? selectedAiPlayerDeck : selectedPvpDeck;
   const currentActiveDeckId = gameMode === 'ai' ? activeAIDeckId : activePvpDeckId;
+  const selectedPlayerDeckForMode = displayDecks.find(deck => deck.id === currentPlayerDeckId) ?? null;
+  const selectedAIDeckDefinition = displayDecks.find(deck => deck.id === selectedAIDeck) ?? null;
   const formatDeckCards = (deck: DeckDefinition) => [
     ...deck.coreCards.map(card => ({ ...card, group: 'Principais' })),
     ...deck.neutralCards.map(card => ({ ...card, group: 'Neutras' })),
@@ -511,6 +513,87 @@ export default function MainMenuLobby({
                   {error}
                 </div>
               )}
+
+              <div className={`grid gap-3 ${gameMode === 'ai' ? 'lg:grid-cols-2' : 'lg:grid-cols-[minmax(0,1fr)_20rem]'}`}>
+                <div className="rounded-xl border border-blue-500/35 bg-blue-950/20 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-blue-400/35 bg-blue-500/15">
+                      <User className="h-4 w-4 text-blue-200" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-200">Seu baralho</p>
+                      <p className="text-xs text-slate-500">{gameMode === 'ai' ? 'Selecionado para jogar contra IA' : 'Selecionado para buscar PvP'}</p>
+                    </div>
+                  </div>
+                  {selectedPlayerDeckForMode ? (
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="truncate text-lg font-black text-white">{selectedPlayerDeckForMode.name}</p>
+                        <p className="text-sm text-blue-100">{getCardById(selectedPlayerDeckForMode.heroId)?.name ?? 'Heroi'} como lider</p>
+                        <p className="mt-1 text-xs text-slate-500">{deckCardCount(selectedPlayerDeckForMode)} cartas</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewDeck(selectedPlayerDeckForMode)}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-xs font-black text-blue-100 transition-colors hover:bg-blue-500/20"
+                      >
+                        <BookOpen className="h-3.5 w-3.5" />
+                        Ver cartas
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-400">Escolha um baralho para continuar.</p>
+                  )}
+                </div>
+
+                {gameMode === 'ai' ? (
+                  <div className="rounded-xl border border-red-500/35 bg-red-950/20 p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-red-400/35 bg-red-500/15">
+                        <Shield className="h-4 w-4 text-red-200" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-red-200">Baralho da IA</p>
+                        <p className="text-xs text-slate-500">Oponente selecionado</p>
+                      </div>
+                    </div>
+                    {selectedAIDeckDefinition ? (
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="truncate text-lg font-black text-white">{selectedAIDeckDefinition.name}</p>
+                          <p className="text-sm text-red-100">{getCardById(selectedAIDeckDefinition.heroId)?.name ?? 'Heroi'} como lider</p>
+                          <p className="mt-1 text-xs text-slate-500">{deckCardCount(selectedAIDeckDefinition)} cartas</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewDeck(selectedAIDeckDefinition)}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-black text-red-100 transition-colors hover:bg-red-500/20"
+                        >
+                          <BookOpen className="h-3.5 w-3.5" />
+                          Ver cartas
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-400">Escolha o baralho que a IA vai usar.</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-300/35 bg-amber-500/15">
+                        <Globe className="h-4 w-4 text-amber-200" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-200">PvP Online</p>
+                        <p className="text-xs text-slate-500">Busca ou entra em sala aberta</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-slate-300">
+                      Depois de escolher seu baralho, use Buscar partida para encontrar outro jogador.
+                    </p>
+                  </div>
+                )}
+              </div>
 
               <div>
                 <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

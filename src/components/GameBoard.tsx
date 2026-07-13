@@ -254,6 +254,13 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     setValidTargets([]);
     setGameMessage('Sem atacantes disponiveis agora. Use um efeito ou encerre o turno.');
   };
+
+  const getAvailableAttackers = (state: GameState) => {
+    const p = state.players[myIdx];
+    const isFirstTurnBlock = state.firstPlayerCannotAttack && state.turnNumber === 1 && state.currentPlayer === myIdx;
+    return [p.hero, ...p.units].filter(card => canAttack(card, isFirstTurnBlock));
+  };
+
   const myLabel = myDisplayName;
   const timerOwnerLabel = gameState.currentPlayer === myIdx ? myDisplayName : oppDisplayName;
 
@@ -281,6 +288,11 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const handleDeclareAttackPhase = () => {
     if (blockIfLocked()) return;
     if (!isPlayerTurn || gameState.gameOver) return;
+    const attackers = getAvailableAttackers(gameState);
+    if (attackers.length === 0) {
+      setGameMessage('Voce nao tem atacantes disponiveis agora.');
+      return;
+    }
     const nextState = {
       ...gameState,
       phase: 'attack' as const,
@@ -290,6 +302,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     setSelectionMode('selectAttacker');
     setSelectedAttackers([]);
     setValidTargets([]);
+    setGameMessage('Escolha quem vai atacar.');
   };
 
   const resetSelections = () => {
@@ -419,6 +432,8 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     if (effects.length === 0) return false;
 
     const hasNoUsefulTarget = effects.some(e => {
+      if (e.type === 'damageAllUnits') return ai.units.length === 0;
+      if (e.type === 'applyConditionAllUnits' && e.target === 'allEnemies') return ai.units.length === 0;
       if (e.type === 'heal') return !allies.some(isDamaged);
       if (e.type === 'healAllUnits') return !allies.some(isDamaged);
       if (e.type === 'removeCondition') return !allies.some(hasNegativeCondition);
@@ -426,6 +441,11 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
       if (e.type === 'attackAgain') return !allies.some(hasUsedAttack);
       if (e.type === 'allUnitsAttackTwice') return !player.units.some(hasUsedAttack);
       if (e.type === 'bonusAttackPerDamageTaken') return !allies.some(isDamaged);
+      if (e.type === 'recoverEquipmentDurability') {
+        return !allies.some(ally =>
+          ally.equipment && ally.equipment.currentDurability < ally.equipment.maxDurability
+        );
+      }
       return false;
     });
 
@@ -820,9 +840,21 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const handleDeclareAttack = () => {
     if (blockIfLocked()) return;
     if (selectedAttackers.length === 0) { setGameMessage('Selecione atacantes primeiro!'); return; }
-    const allAttackers = [player.hero, ...player.units].filter(u => selectedAttackers.includes(u.instanceId));
+    const availableIds = new Set(getAvailableAttackers(gameState).map(card => card.instanceId));
+    const allAttackers = [player.hero, ...player.units].filter(u =>
+      selectedAttackers.includes(u.instanceId) && availableIds.has(u.instanceId)
+    );
     const firstAttacker = allAttackers[0];
+    if (!firstAttacker) {
+      setSelectedAttackers([]);
+      setGameMessage('Os atacantes selecionados nao podem atacar agora.');
+      return;
+    }
     const targets = getValidAttackTargets(gameState, myIdx, firstAttacker);
+    if (targets.length === 0) {
+      setGameMessage(`${firstAttacker.name} nao possui alvo valido para atacar.`);
+      return;
+    }
     setValidTargets(targets);
     setSelectionMode('selectAttackTarget');
     setGameMessage('Selecione o alvo do ataque.');
@@ -853,6 +885,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const viewedDiscardName = viewingDiscard !== null
     ? (viewingDiscard === myIdx ? myLabel : oppLabel)
     : '';
+  const availableAttackers = getAvailableAttackers(gameState);
   const currentInstruction = !isPlayerTurn
     ? (isPvP ? `Aguardando jogada de ${oppLabel}` : 'Aguardando a IA jogar')
     : selectionMode === 'selectAttacker'
@@ -1312,15 +1345,21 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
             <div className="flex gap-2 justify-center flex-wrap items-center bg-slate-950/55 border border-slate-800/70 rounded-xl px-3 py-2 shadow-lg shadow-black/20">
               {selectionMode === 'none' && isMainPhase && (
                 <>
+                  <div className="flex min-w-[160px] items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-bold text-slate-300">
+                    <Sword className="h-4 w-4 text-rose-300" />
+                    {availableAttackers.length} atacante{availableAttackers.length === 1 ? '' : 's'} disponivel{availableAttackers.length === 1 ? '' : 'eis'}
+                  </div>
                   <button
                     onClick={handleDeclareAttackPhase}
-                    className="px-5 py-2 bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white text-sm rounded-lg font-bold transition-all flex items-center gap-2 shadow-lg shadow-rose-900/30"
+                    disabled={availableAttackers.length === 0}
+                    className="flex items-center gap-2 rounded-lg border border-rose-500/40 bg-rose-600 px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-rose-500 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-500"
+                    title={availableAttackers.length === 0 ? 'Nenhum atacante disponivel agora' : 'Entrar na fase de ataque'}
                   >
                     <Sword className="w-4 h-4" /> Atacar
                   </button>
                   <button
                     onClick={handleEndTurn}
-                    className="px-5 py-2 bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 text-white text-sm rounded-lg font-bold transition-all flex items-center gap-2 shadow-lg shadow-blue-900/30"
+                    className="flex items-center gap-2 rounded-lg border border-blue-500/40 bg-blue-600 px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-blue-500"
                   >
                     Encerrar Turno <ChevronRight className="w-4 h-4" />
                   </button>
@@ -1331,7 +1370,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                   <div className="flex items-center gap-2 px-3 py-2 bg-slate-800 rounded-lg border border-slate-700">
                     <Sword className="w-4 h-4 text-rose-400" />
                     <span className="text-white text-sm font-semibold">
-                      {selectedAttackers.length === 0 ? 'Selecione atacantes' : `${selectedAttackers.length} selecionado(s)`}
+                      {selectedAttackers.length === 0 ? `${availableAttackers.length} atacante(s) disponivel(is)` : `${selectedAttackers.length} selecionado(s)`}
                     </span>
                     {selectedAttackers.length > 0 && (
                       <span className="text-rose-400 font-bold bg-rose-950/40 px-2 py-0.5 rounded text-xs">
