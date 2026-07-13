@@ -1,24 +1,38 @@
-import { useEffect, useState, useCallback } from 'react';
+import { lazy, Suspense, useEffect, useState, useCallback } from 'react';
 import { DeckDefinition, GameState, PlayerIndex } from './types/game';
 import { createInitialState, buildDeck } from './engine/gameEngine';
 import { getCardById } from './data/cards';
 import { getSavedDecks } from './data/defaultDecks';
 import { AuthProvider, useAuth } from './lib/authContext';
 import { useDecks } from './hooks/useDecks';
-import MainMenu from './components/MainMenuLobby';
-import DeckBuilder from './components/DeckBuilder';
-import CollectionViewer from './components/CollectionViewer';
-import GameBoard, { BoardCosmetics } from './components/GameBoard';
-import GameOver from './components/GameOver';
-import CoinFlip from './components/CoinFlip';
-import AuthModal from './components/AuthModal';
-import MatchmakingScreen from './components/MatchmakingScreen';
-import PvPGameBoard from './components/PvPGameBoard';
-import PlayerProfile, { ProfileTab } from './components/PlayerProfile';
+import type { BoardCosmetics } from './components/GameBoard';
+import type { ProfileTab } from './components/PlayerProfile';
 import { savePlayerMatchResult } from './lib/ranking';
 import { fetchPlayerProgress, PlayerProgress, saveMatchProgress } from './lib/progression';
 
+const MainMenu = lazy(() => import('./components/MainMenuLobby'));
+const DeckBuilder = lazy(() => import('./components/DeckBuilder'));
+const CollectionViewer = lazy(() => import('./components/CollectionViewer'));
+const GameBoard = lazy(() => import('./components/GameBoard'));
+const GameOver = lazy(() => import('./components/GameOver'));
+const CoinFlip = lazy(() => import('./components/CoinFlip'));
+const AuthModal = lazy(() => import('./components/AuthModal'));
+const MatchmakingScreen = lazy(() => import('./components/MatchmakingScreen'));
+const PvPGameBoard = lazy(() => import('./components/PvPGameBoard'));
+const PlayerProfile = lazy(() => import('./components/PlayerProfile'));
+
 type Screen = 'menu' | 'deckBuilder' | 'collection' | 'coinFlip' | 'game' | 'gameOver' | 'matchmaking' | 'pvpGame' | 'profile';
+
+function ScreenLoader() {
+  return (
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <span className="text-gray-400 text-sm">Carregando...</span>
+      </div>
+    </div>
+  );
+}
 
 function AppContent() {
   const [screen, setScreen] = useState<Screen>('menu');
@@ -175,7 +189,7 @@ function AppContent() {
           </div>
         </div>
       ) : (
-        <>
+        <Suspense fallback={<ScreenLoader />}>
           {screen === 'menu' && (
         <MainMenu
           onStartGame={handleStartGame}
@@ -258,7 +272,7 @@ function AppContent() {
         />
       )}
           <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} />
-        </>
+        </Suspense>
       )}
     </>
   );
