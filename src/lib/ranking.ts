@@ -124,6 +124,31 @@ export async function savePlayerMatchResult(input: {
   return { error: null };
 }
 
+export async function saveSecurePvpMatchResult(input: {
+  roomId: string;
+  winnerId: string | null;
+  finishReason: FinishReason;
+  heroId?: string | null;
+  opponentHeroId?: string | null;
+  turns?: number | null;
+  matchLog?: string[];
+}) {
+  const { data, error } = await supabase.rpc('finish_pvp_match', {
+    p_room_id: input.roomId,
+    p_winner_id: input.winnerId,
+    p_finish_reason: input.finishReason,
+    p_hero_id: input.heroId ?? null,
+    p_opponent_hero_id: input.opponentHeroId ?? null,
+    p_turns: input.turns ?? null,
+    p_match_log: sanitizeMatchLog(input.matchLog),
+  });
+
+  return {
+    data: data as { saved?: boolean; reason?: string } | null,
+    error: error?.message ?? null,
+  };
+}
+
 export async function fetchRanking(limit = 50) {
   const { data, error } = await supabase
     .from('profiles')
