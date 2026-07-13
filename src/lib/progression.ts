@@ -23,6 +23,15 @@ export interface MissionDefinition {
   goldReward: number;
 }
 
+export interface FirstWinBonusDefinition {
+  id: string;
+  title: string;
+  description: string;
+  mode: MatchMode;
+  xpReward: number;
+  goldReward: number;
+}
+
 export interface PlayerProgress {
   player_id: string;
   level: number;
@@ -121,6 +130,34 @@ export const DAILY_MISSIONS: MissionDefinition[] = [
     target: 3,
     xpReward: 50,
     goldReward: 15,
+  },
+  {
+    id: 'daily_declare_attacks',
+    title: 'Pressao Constante',
+    description: 'Declare 4 ataques.',
+    metric: 'declare_attacks',
+    target: 4,
+    xpReward: 60,
+    goldReward: 20,
+  },
+];
+
+export const DAILY_FIRST_WIN_BONUSES: FirstWinBonusDefinition[] = [
+  {
+    id: 'daily_first_ai_win_bonus',
+    title: 'Primeira vitoria contra IA',
+    description: 'Venca sua primeira partida contra a IA hoje.',
+    mode: 'ai',
+    xpReward: 80,
+    goldReward: 35,
+  },
+  {
+    id: 'daily_first_pvp_win_bonus',
+    title: 'Primeira vitoria PvP',
+    description: 'Venca sua primeira partida PvP hoje.',
+    mode: 'pvp',
+    xpReward: 140,
+    goldReward: 75,
   },
 ];
 
@@ -327,7 +364,10 @@ export function localTestPlayerProgress(playerId: string): PlayerProgress {
     gold: 999999,
     daily_mission_date: getTodayKey(),
     mission_progress: Object.fromEntries(DAILY_MISSIONS.map(mission => [mission.id, mission.target])),
-    completed_daily_missions: DAILY_MISSIONS.map(mission => mission.id),
+    completed_daily_missions: [
+      ...DAILY_MISSIONS.map(mission => mission.id),
+      ...DAILY_FIRST_WIN_BONUSES.map(bonus => bonus.id),
+    ],
     supporter: true,
     equipped_profile_frame: 'sapphire',
     unlocked_profile_frames: PROFILE_FRAMES.map(frame => frame.id),
@@ -561,6 +601,15 @@ export async function saveMatchProgress(input: MatchProgressInput) {
   let goldGain = input.mode === 'pvp' ? 20 : 5;
   if (input.result === 'win') goldGain += input.mode === 'pvp' ? 20 : 5;
   const nextProgress = { ...currentProgress };
+
+  DAILY_FIRST_WIN_BONUSES.forEach(bonus => {
+    if (completedSet.has(bonus.id)) return;
+    if (input.result !== 'win' || input.mode !== bonus.mode) return;
+
+    completedSet.add(bonus.id);
+    xpGain += bonus.xpReward;
+    goldGain += bonus.goldReward;
+  });
 
   DAILY_MISSIONS.forEach(mission => {
     if (completedSet.has(mission.id)) return;
