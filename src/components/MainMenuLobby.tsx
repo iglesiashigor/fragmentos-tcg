@@ -26,6 +26,20 @@ interface MainMenuLobbyProps {
   onRefreshDecks: () => void;
 }
 
+const LAST_AI_MATCH_DECKS_KEY = 'fragmentos-last-ai-match-decks';
+
+function getLastAIMatchDecks(): { playerDeckId?: string; aiDeckId?: string } {
+  try {
+    return JSON.parse(localStorage.getItem(LAST_AI_MATCH_DECKS_KEY) ?? '{}');
+  } catch {
+    return {};
+  }
+}
+
+function saveLastAIMatchDecks(playerDeckId: string, aiDeckId: string) {
+  localStorage.setItem(LAST_AI_MATCH_DECKS_KEY, JSON.stringify({ playerDeckId, aiDeckId }));
+}
+
 export default function MainMenuLobby({
   onStartGame,
   onStartPvp,
@@ -42,8 +56,10 @@ export default function MainMenuLobby({
 }: MainMenuLobbyProps) {
   const { signOut } = useAuth();
   const displayDecks = useMemo(() => decks.length > 0 ? decks : DEFAULT_DECKS, [decks]);
-  const [selectedPlayerDeck, setSelectedPlayerDeck] = useState<string | null>(displayDecks[0]?.id ?? null);
-  const [selectedAIDeck, setSelectedAIDeck] = useState<string | null>(displayDecks[1]?.id ?? displayDecks[0]?.id ?? null);
+  const lastAIMatchDecks = useMemo(() => getLastAIMatchDecks(), []);
+  const [selectedPlayerDeck, setSelectedPlayerDeck] = useState<string | null>(lastAIMatchDecks.playerDeckId ?? displayDecks[0]?.id ?? null);
+  const [selectedAIDeck, setSelectedAIDeck] = useState<string | null>(lastAIMatchDecks.aiDeckId ?? displayDecks[1]?.id ?? displayDecks[0]?.id ?? null);
+  const [activeDeckId, setActiveDeckId] = useState<string | null>(lastAIMatchDecks.playerDeckId ?? displayDecks[0]?.id ?? null);
   const [gameMode, setGameMode] = useState<'ai' | 'pvp'>('ai');
   const [error, setError] = useState('');
   const [playerProgress, setPlayerProgress] = useState<PlayerProgress | null>(null);
@@ -53,20 +69,29 @@ export default function MainMenuLobby({
     onConfirm: () => void;
   } | null>(null);
 
-  const selectedDeck = displayDecks.find(deck => deck.id === selectedPlayerDeck) ?? displayDecks[0];
-  const selectedAiDeck = displayDecks.find(deck => deck.id === selectedAIDeck) ?? displayDecks[1] ?? displayDecks[0];
-  const selectedHero = selectedDeck ? getCardById(selectedDeck.heroId) : null;
-  const selectedAiHero = selectedAiDeck ? getCardById(selectedAiDeck.heroId) : null;
   const defaultDeckIds = useMemo(() => new Set(DEFAULT_DECKS.map(deck => deck.id)), []);
   const profileName = profile?.username ?? user?.email?.split('@')[0] ?? 'Jogador';
   const playedMatches = (profile?.wins ?? 0) + (profile?.losses ?? 0);
   const winRate = playedMatches > 0 ? Math.round(((profile?.wins ?? 0) / playedMatches) * 100) : 0;
+  const deckCardCount = (deck?: DeckDefinition | null) =>
+    deck ? deck.coreCards.reduce((sum, card) => sum + card.count, 0) + deck.neutralCards.reduce((sum, card) => sum + card.count, 0) : 0;
 
   useEffect(() => {
-    if (!selectedPlayerDeck && displayDecks[0]) setSelectedPlayerDeck(displayDecks[0].id);
-    if (!selectedAIDeck && displayDecks[1]) setSelectedAIDeck(displayDecks[1].id);
-    if (!selectedAIDeck && !displayDecks[1] && displayDecks[0]) setSelectedAIDeck(displayDecks[0].id);
-  }, [displayDecks, selectedAIDeck, selectedPlayerDeck]);
+    if (displayDecks.length === 0) {
+      setSelectedPlayerDeck(null);
+      setSelectedAIDeck(null);
+      setActiveDeckId(null);
+      return;
+    }
+
+    const deckIds = new Set(displayDecks.map(deck => deck.id));
+    const fallbackPlayerDeck = displayDecks[0]?.id ?? null;
+    const fallbackAIDeck = displayDecks[1]?.id ?? fallbackPlayerDeck;
+
+    if (!selectedPlayerDeck || !deckIds.has(selectedPlayerDeck)) setSelectedPlayerDeck(fallbackPlayerDeck);
+    if (!selectedAIDeck || !deckIds.has(selectedAIDeck)) setSelectedAIDeck(fallbackAIDeck);
+    if (!activeDeckId || !deckIds.has(activeDeckId)) setActiveDeckId(selectedPlayerDeck && deckIds.has(selectedPlayerDeck) ? selectedPlayerDeck : fallbackPlayerDeck);
+  }, [activeDeckId, displayDecks, selectedAIDeck, selectedPlayerDeck]);
 
   useEffect(() => {
     if (!user) {
@@ -121,6 +146,7 @@ export default function MainMenuLobby({
     }
 
     setError('');
+    saveLastAIMatchDecks(playerDeck.id, aiDeck.id);
     onStartGame(playerDeck, aiDeck);
   };
 
@@ -344,98 +370,6 @@ export default function MainMenuLobby({
             </div>
 
             <div className="p-5 space-y-5">
-              <div className="grid grid-cols-1 gap-4">
-                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs text-slate-500 font-bold uppercase">Seu baralho</p>
-                      <h3 className="text-2xl font-black text-white mt-1">{selectedDeck?.name ?? 'Nenhum baralho'}</h3>
-                      <p className="text-sm text-slate-400 mt-1">{selectedHero?.name ?? 'Heroi'} como lider</p>
-                    </div>
-                    <div className="w-14 h-14 rounded-xl bg-amber-500/15 border border-amber-400/40 flex items-center justify-center shrink-0">
-                      <Star className="w-7 h-7 text-amber-300" />
-                    </div>
-                  </div>
-                  <div className="mt-4 grid grid-cols-3 gap-2">
-                    <div className="rounded-lg bg-slate-950/70 border border-slate-800 p-2">
-                      <div className="text-[10px] text-slate-500 uppercase">Heroi</div>
-                      <div className="text-sm font-bold text-white truncate">{selectedHero?.name ?? '-'}</div>
-                    </div>
-                    <div className="rounded-lg bg-slate-950/70 border border-slate-800 p-2">
-                      <div className="text-[10px] text-slate-500 uppercase">Cartas</div>
-                      <div className="text-sm font-bold text-white">{(selectedDeck?.coreCards.length ?? 0) + (selectedDeck?.neutralCards.length ?? 0)}</div>
-                    </div>
-                    <div className="rounded-lg bg-slate-950/70 border border-slate-800 p-2">
-                      <div className="text-[10px] text-slate-500 uppercase">Modo</div>
-                      <div className="text-sm font-bold text-white">{gameMode === 'ai' ? 'vs IA' : 'PvP'}</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                  {gameMode === 'ai' ? (
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)_220px] lg:items-end">
-                      <div>
-                        <p className="text-xs text-slate-500 font-bold uppercase">Baralho do oponente</p>
-                        <div className="mt-2 rounded-xl border border-red-900/40 bg-red-950/20 p-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-14 rounded-lg bg-gradient-to-br from-red-800 to-slate-950 border border-red-500/40 flex items-center justify-center shrink-0">
-                              <Shield className="w-5 h-5 text-red-300" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-sm font-black leading-tight text-white break-words">{selectedAiDeck?.name ?? 'IA'}</div>
-                              <div className="mt-0.5 text-xs leading-tight text-slate-400 break-words">{selectedAiHero?.name ?? 'Heroi'} como lider</div>
-                              <div className="text-[11px] text-slate-500 mt-1">
-                                {(selectedAiDeck?.coreCards.length ?? 0) + (selectedAiDeck?.neutralCards.length ?? 0)} cartas
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <label className="block">
-                        <span className="mb-2 block text-xs font-bold uppercase text-slate-500">
-                          Escolha o baralho da IA
-                        </span>
-                        <select
-                          value={selectedAIDeck ?? ''}
-                          onChange={event => setSelectedAIDeck(event.target.value)}
-                          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-sm font-bold text-white outline-none focus:border-red-400"
-                        >
-                          {displayDecks.map(deck => {
-                            const hero = getCardById(deck.heroId);
-                            return (
-                              <option key={deck.id} value={deck.id}>
-                                {deck.name} - {hero?.name ?? 'Heroi'}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </label>
-                      <button onClick={handleStartGame} disabled={decksLoading} className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-60 disabled:cursor-wait text-slate-950 px-4 py-3 font-black transition-colors shadow-lg shadow-amber-950/30">
-                        <Swords className="w-5 h-5" />
-                        Jogar agora
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-                      <div>
-                        <p className="text-xs text-slate-500 font-bold uppercase">Online</p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <Globe className="w-4 h-4 text-amber-300" />
-                          <span className="text-sm font-bold text-white">Buscar duelo</span>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-1">Sala ou oponente disponivel</p>
-                      </div>
-                      <button onClick={onStartPvp} className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-3 font-black transition-colors shadow-lg shadow-amber-950/30">
-                        <Globe className="w-5 h-5" />
-                        Buscar partida
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
               {error && (
                 <div className="rounded-xl border border-red-700/60 bg-red-950/40 p-3 text-sm text-red-200">
                   {error}
@@ -443,30 +377,109 @@ export default function MainMenuLobby({
               )}
 
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-400">Baralhos</h3>
-                  <span className="text-xs text-slate-500">{displayDecks.length} disponiveis</span>
+                <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-400">Baralhos</h3>
+                    <span className="text-xs text-slate-500">{displayDecks.length} disponiveis</span>
+                  </div>
+                  {gameMode === 'ai' ? (
+                    selectedPlayerDeck && selectedAIDeck && (
+                      <button onClick={handleStartGame} disabled={decksLoading} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 font-black text-slate-950 shadow-lg shadow-amber-950/30 transition-colors hover:bg-amber-400 disabled:cursor-wait disabled:opacity-60 lg:w-auto">
+                        <Swords className="w-5 h-5" />
+                        Jogar agora
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    )
+                  ) : (
+                    <button onClick={onStartPvp} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 font-black text-slate-950 shadow-lg shadow-amber-950/30 transition-colors hover:bg-amber-400 lg:w-auto">
+                      <Globe className="w-5 h-5" />
+                      Buscar partida
+                    </button>
+                  )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {displayDecks.map(deck => {
                     const hero = getCardById(deck.heroId);
-                    const isSelected = selectedPlayerDeck === deck.id;
+                    const isPlayerDeck = selectedPlayerDeck === deck.id;
+                    const isAiDeck = selectedAIDeck === deck.id;
+                    const isActive = activeDeckId === deck.id;
                     const isDefaultDeck = defaultDeckIds.has(deck.id);
+                    const isSharedDeck = isPlayerDeck && isAiDeck;
+                    const cardClass = isSharedDeck
+                      ? 'border-transparent bg-slate-900/50 shadow-lg shadow-black/20'
+                      : isPlayerDeck
+                      ? 'border-blue-500/80 bg-blue-950/20 shadow-lg shadow-blue-950/20'
+                      : isAiDeck
+                      ? 'border-red-500/80 bg-red-950/20 shadow-lg shadow-red-950/20'
+                      : isActive
+                      ? 'border-amber-400/80 bg-amber-950/20 shadow-lg shadow-amber-950/20'
+                      : 'border-slate-800 bg-slate-900/50 hover:border-slate-600';
+                    const sharedBorderStyle = isSharedDeck
+                      ? {
+                          background:
+                            'linear-gradient(rgb(15 23 42 / 0.78), rgb(15 23 42 / 0.78)) padding-box, linear-gradient(90deg, rgb(59 130 246) 0 50%, rgb(239 68 68) 50% 100%) border-box',
+                        }
+                      : undefined;
                     return (
-                      <div key={deck.id} className={`rounded-xl border p-3 transition-all ${isSelected ? 'border-amber-400/80 bg-amber-950/20 shadow-lg shadow-amber-950/20' : 'border-slate-800 bg-slate-900/50 hover:border-slate-600'}`}>
-                        <button onClick={() => setSelectedPlayerDeck(deck.id)} className="w-full text-left flex items-center gap-3">
+                      <div key={deck.id} style={sharedBorderStyle} className={`rounded-xl border p-3 transition-all ${cardClass}`}>
+                        <button onClick={() => setActiveDeckId(deck.id)} className="w-full text-left flex items-center gap-3">
                           <div className="w-11 h-14 rounded-lg bg-gradient-to-br from-amber-800 to-slate-950 border border-amber-500/40 flex items-center justify-center shrink-0">
                             <Star className="w-5 h-5 text-amber-300" />
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
                               <p className="font-black text-white truncate">{deck.name}</p>
-                              {isSelected && <span className="w-2 h-2 rounded-full bg-amber-300 shrink-0" />}
+                              {isActive && <span className="w-2 h-2 rounded-full bg-amber-300 shrink-0" />}
                             </div>
                             <p className="text-xs text-slate-400 truncate">{hero?.name ?? 'Heroi'}</p>
-                            <p className="text-[11px] text-slate-500 mt-1">{deck.coreCards.length + deck.neutralCards.length} cartas</p>
+                            <p className="text-[11px] text-slate-500 mt-1">{deckCardCount(deck)} cartas</p>
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {isPlayerDeck && (
+                                <span className="rounded-full border border-blue-500/40 bg-blue-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-blue-200">
+                                  Seu baralho
+                                </span>
+                              )}
+                              {isAiDeck && (
+                                <span className="rounded-full border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-red-200">
+                                  IA
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </button>
+                        {isActive && (
+                          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <button
+                              onClick={() => {
+                                setSelectedPlayerDeck(deck.id);
+                                setError('');
+                              }}
+                              className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-black transition-colors ${
+                                isPlayerDeck
+                                  ? 'border border-blue-500/60 bg-blue-500/20 text-blue-100'
+                                  : 'border border-blue-800/60 bg-blue-950/50 text-blue-200 hover:bg-blue-900/60'
+                              }`}
+                            >
+                              <User className="h-3.5 w-3.5" />
+                              Usar comigo
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedAIDeck(deck.id);
+                                setError('');
+                              }}
+                              disabled={gameMode !== 'ai'}
+                              className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-black transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                                isAiDeck
+                                  ? 'border border-red-500/60 bg-red-500/20 text-red-100'
+                                  : 'border border-red-900/60 bg-red-950/50 text-red-200 hover:bg-red-900/60'
+                              }`}
+                            >
+                              <Shield className="h-3.5 w-3.5" />
+                              Usar na IA
+                            </button>
+                          </div>
+                        )}
                         {isDefaultDeck ? (
                           <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-200">
                             Baralho padrao
