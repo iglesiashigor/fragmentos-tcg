@@ -7,7 +7,7 @@ import { ArrowLeft, Radio, Loader2, Trophy, Home, Star } from 'lucide-react';
 import GameBoard, { BoardCosmetics } from './GameBoard';
 import CoinFlip from './CoinFlip';
 import { getSavedDecks } from '../data/defaultDecks';
-import { savePlayerMatchResult, MatchResult } from '../lib/ranking';
+import { saveSecurePvpMatchResult, MatchResult } from '../lib/ranking';
 import { saveMatchProgress } from '../lib/progression';
 
 interface PvPGameBoardProps {
@@ -344,25 +344,28 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
       ? 'surrender'
       : 'normal';
 
-    void savePlayerMatchResult({
-      matchUid,
-      playerId: user.id,
-      opponentId: playerIds[opponentIndex],
-      opponentName: playerNames[opponentIndex],
-      mode: 'pvp',
-      result,
+    void saveSecurePvpMatchResult({
+      roomId,
+      winnerId: gameState.winner === 'draw' ? null : playerIds[gameState.winner],
       finishReason,
       heroId: gameState.players[playerNumber].hero.cardId,
       opponentHeroId: gameState.players[opponentIndex].hero.cardId,
       turns: gameState.turnNumber,
       matchLog: gameState.log.map(line => formatPvpLogLine(line, playerNames)),
     })
-      .then(() => saveMatchProgress({
+      .then(({ error: secureError }) => {
+        if (secureError) {
+          setError(`Nao foi possivel registrar o resultado oficial: ${secureError}`);
+          return null;
+        }
+
+        return saveMatchProgress({
         playerId: user.id,
         mode: 'pvp',
         result,
         stats: gameState.matchStats?.[playerNumber] ?? null,
-      }))
+        });
+      })
       .then(() => refreshProfile());
 
     void supabase
