@@ -461,12 +461,16 @@ function chooseAttackTarget(
       const durability = unit.currentHealth + unit.currentDefense;
       const lethal = damage >= durability;
       const waste = lethal ? damage - durability : durability - damage;
-      const score = (lethal ? 100 : 0) + combatValue(unit) - waste;
+      const canTradeWell = damage >= Math.max(1, unit.currentHealth + Math.floor(unit.currentDefense / 2));
+      const score = (lethal ? 120 : canTradeWell ? 35 : 0) + combatValue(unit) - waste;
       return { unit, score };
     })
     .sort((a, b) => b.score - a.score);
 
   if (units[0]?.score >= 100) return units[0].unit.instanceId;
-  if (heroIsValid) return opponent.hero.instanceId;
+  if (units.length > 0 && units[0].score >= 28) return units[0].unit.instanceId;
+  if (heroIsValid && (opponent.units.length === 0 || damage >= Math.ceil(heroDurability * 0.45))) {
+    return opponent.hero.instanceId;
+  }
   return units[0]?.unit.instanceId ?? validTargets[0];
 }
