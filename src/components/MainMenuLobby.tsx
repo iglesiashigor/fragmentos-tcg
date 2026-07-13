@@ -8,7 +8,7 @@ import type { ProfileTab } from './PlayerProfile';
 import {
   AlertTriangle, BookOpen, Calendar, ChevronRight, Coins, Crown, Edit3, Gem, Globe,
   Layers, LogIn, LogOut, Plus, Shield, ShoppingBag, Sparkles, Star, Swords, Target,
-  Trash2, Trophy, User, Users, Zap,
+  Trash2, Trophy, User, Users, X, Zap,
 } from 'lucide-react';
 
 interface MainMenuLobbyProps {
@@ -80,6 +80,7 @@ export default function MainMenuLobby({
     message: string;
     onConfirm: () => void;
   } | null>(null);
+  const [previewDeck, setPreviewDeck] = useState<DeckDefinition | null>(null);
 
   const defaultDeckIds = useMemo(() => new Set(DEFAULT_DECKS.map(deck => deck.id)), []);
   const profileName = profile?.username ?? user?.email?.split('@')[0] ?? 'Jogador';
@@ -89,6 +90,10 @@ export default function MainMenuLobby({
     deck ? deck.coreCards.reduce((sum, card) => sum + card.count, 0) + deck.neutralCards.reduce((sum, card) => sum + card.count, 0) : 0;
   const currentPlayerDeckId = gameMode === 'ai' ? selectedAiPlayerDeck : selectedPvpDeck;
   const currentActiveDeckId = gameMode === 'ai' ? activeAIDeckId : activePvpDeckId;
+  const formatDeckCards = (deck: DeckDefinition) => [
+    ...deck.coreCards.map(card => ({ ...card, group: 'Principais' })),
+    ...deck.neutralCards.map(card => ({ ...card, group: 'Neutras' })),
+  ];
 
   useEffect(() => {
     if (displayDecks.length === 0) {
@@ -221,6 +226,94 @@ export default function MainMenuLobby({
                   Deletar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewDeck && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="deck-preview-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setPreviewDeck(null);
+          }}
+        >
+          <div className="flex max-h-[86vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl shadow-black/50">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-800 p-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-amber-300" />
+                  <h2 id="deck-preview-title" className="truncate text-lg font-black text-white">{previewDeck.name}</h2>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  {deckCardCount(previewDeck)} cartas no baralho
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewDeck(null)}
+                className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-400 transition-colors hover:border-slate-600 hover:text-white"
+                aria-label="Fechar lista de cartas"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-200/80">Heroi</p>
+                    <p className="truncate text-sm font-black text-white">
+                      {getCardById(previewDeck.heroId)?.name ?? previewDeck.heroId}
+                    </p>
+                  </div>
+                  <Star className="h-5 w-5 shrink-0 text-amber-300" />
+                </div>
+              </div>
+
+              {(['Principais', 'Neutras'] as const).map(group => {
+                const cards = formatDeckCards(previewDeck).filter(card => card.group === group);
+                if (cards.length === 0) return null;
+                return (
+                  <section key={group} className="mb-4 last:mb-0">
+                    <div className="mb-2 flex items-center justify-between">
+                      <h3 className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{group}</h3>
+                      <span className="text-xs text-slate-500">
+                        {cards.reduce((sum, card) => sum + card.count, 0)} cartas
+                      </span>
+                    </div>
+                    <div className="divide-y divide-slate-800 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60">
+                      {cards.map(card => {
+                        const definition = getCardById(card.cardId);
+                        return (
+                          <div key={`${group}-${card.cardId}`} className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5">
+                            <div className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-center text-sm font-black text-amber-200">
+                              x{card.count}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-bold text-white">{definition?.name ?? card.cardId}</p>
+                              <p className="text-xs text-slate-500">
+                                {definition?.type === 'unit' ? 'Unidade' :
+                                  definition?.type === 'spell' ? 'Feitico' :
+                                  definition?.type === 'equipment' ? 'Equipamento' :
+                                  definition?.type === 'mount' ? 'Montaria' :
+                                  definition?.type === 'terrain' ? 'Terreno' : 'Carta'}
+                              </p>
+                            </div>
+                            <span className="rounded-full border border-blue-500/25 bg-blue-500/10 px-2 py-1 text-[11px] font-black text-blue-200">
+                              {definition?.manaCost ?? '-'} mana
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -540,11 +633,25 @@ export default function MainMenuLobby({
                           </div>
                         )}
                         {isDefaultDeck ? (
-                          <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-200">
-                            Baralho padrao
+                          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewDeck(deck)}
+                              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-bold text-slate-200 transition-colors hover:border-blue-500/50 hover:text-blue-200"
+                            >
+                              <BookOpen className="h-3.5 w-3.5" />
+                              Ver cartas
+                            </button>
+                            <div className="flex flex-1 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-200">
+                              Baralho padrao
+                            </div>
                           </div>
                         ) : (
                           <div className="mt-3 flex gap-2">
+                            <button onClick={() => setPreviewDeck(deck)} className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-bold text-slate-200 transition-colors hover:border-blue-500/50 hover:text-blue-200">
+                              <BookOpen className="w-3.5 h-3.5" />
+                              Ver
+                            </button>
                             <button onClick={() => onOpenDeckBuilder(deck)} className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 px-3 py-2 text-xs font-bold text-slate-200 transition-colors">
                               <Edit3 className="w-3.5 h-3.5" />
                               Editar
