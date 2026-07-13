@@ -13,6 +13,7 @@ import {
 import {
   calculateLevelFromXp,
   CARD_FRAMES,
+  DAILY_FIRST_WIN_BONUSES,
   DAILY_MISSIONS,
   defaultPlayerProgress,
   equipCardFrame,
@@ -423,6 +424,51 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
           </div>
         ) : tab === 'missions' ? (
           <Panel title="Missoes diarias" icon={<Target className="w-4 h-4 text-amber-300" />}>
+            <div className="mb-5">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-300">Bonus diario</h3>
+                  <p className="text-xs text-slate-500">A primeira vitoria do dia rende uma recompensa extra.</p>
+                </div>
+                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-200">
+                  Reseta todo dia
+                </span>
+              </div>
+              <div className="grid md:grid-cols-2 gap-3">
+                {DAILY_FIRST_WIN_BONUSES.map(bonus => {
+                  const done = completedMissions.has(bonus.id);
+                  return (
+                    <div key={bonus.id} className={`rounded-xl border p-4 ${done ? 'border-emerald-500/35 bg-emerald-950/20' : 'border-amber-500/25 bg-amber-950/10'}`}>
+                      <div className="flex items-start gap-3">
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center border ${done ? 'bg-emerald-500/20 border-emerald-400/40' : 'bg-amber-500/15 border-amber-400/30'}`}>
+                          {done ? <CheckCircle2 className="w-5 h-5 text-emerald-300" /> : <Trophy className="w-5 h-5 text-amber-300" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-3">
+                            <h3 className="font-black text-white text-sm">{bonus.title}</h3>
+                            <span className="text-xs font-bold text-blue-200">+{bonus.xpReward} XP / +{bonus.goldReward} gold</span>
+                          </div>
+                          <p className="text-xs text-slate-400 mt-1">{bonus.description}</p>
+                          <div className="mt-3 flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2">
+                            <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                              {bonus.mode === 'pvp' ? 'PvP Online' : 'Contra IA'}
+                            </span>
+                            <span className={`text-xs font-black ${done ? 'text-emerald-300' : 'text-amber-200'}`}>
+                              {done ? 'Recebido' : 'Disponivel'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-300">Objetivos do dia</h3>
+              <p className="text-xs text-slate-500">Complete jogando partidas contra IA ou PvP.</p>
+            </div>
             <div className="grid md:grid-cols-2 gap-3">
               {DAILY_MISSIONS.map(mission => {
                 const current = Math.min(mission.target, missionProgress[mission.id] ?? 0);
