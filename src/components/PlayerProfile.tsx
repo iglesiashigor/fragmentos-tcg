@@ -317,31 +317,34 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
             </div>
             <div className="flex-1">
               <p className="text-slate-400 text-xs uppercase tracking-[0.24em] font-bold">Jogador</p>
-              <h1 className="text-3xl font-black text-white">{profile?.username ?? 'Jogador'}</h1>
-              <div className="flex flex-wrap gap-2 mt-3">
-                <span className={`px-3 py-1 rounded-full bg-slate-950/70 border border-white/10 text-sm font-bold ${rank.color}`}>
-                  {rank.name}
-                </span>
-                <span className="px-3 py-1 rounded-full bg-slate-950/70 border border-white/10 text-sm text-slate-300">
-                  {rating} pontos
-                </span>
-                <span className="px-3 py-1 rounded-full bg-slate-950/70 border border-white/10 text-sm text-blue-200">
-                  Nivel {levelInfo.level}
-                </span>
-                <span className="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-300/30 text-sm text-amber-200 flex items-center gap-1.5">
-                  <Coins className="w-3.5 h-3.5" />
-                  {gold} gold
-                </span>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <h1 className="text-3xl font-black text-white">{profile?.username ?? 'Jogador'}</h1>
                 {progress?.supporter && (
-                  <span className="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-300/30 text-sm text-amber-200">
+                  <span className="rounded-full border border-amber-300/25 bg-amber-500/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-amber-200">
                     Apoiador
                   </span>
                 )}
-                {myPosition > 0 && (
-                  <span className="px-3 py-1 rounded-full bg-slate-950/70 border border-white/10 text-sm text-amber-300">
-                    #{myPosition} no ranking
-                  </span>
-                )}
+              </div>
+              <div className="mt-4 grid max-w-2xl grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Elo atual</p>
+                  <p className={`mt-1 truncate text-sm font-black ${rank.color}`}>{rank.name}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Temporada</p>
+                  <p className="mt-1 text-sm font-black text-white">{rating} pts</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Nivel</p>
+                  <p className="mt-1 text-sm font-black text-blue-100">{levelInfo.level}</p>
+                </div>
+                <div className="rounded-xl border border-amber-300/20 bg-amber-500/10 px-3 py-2">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-amber-300/75">Gold</p>
+                  <p className="mt-1 flex items-center gap-1.5 text-sm font-black text-amber-100">
+                    <Coins className="h-3.5 w-3.5" />
+                    {gold}
+                  </p>
+                </div>
               </div>
               <div className="mt-4 max-w-md">
                 <div className="flex justify-between text-xs text-slate-400 mb-1">
