@@ -1728,10 +1728,15 @@ export function attachEquipment(
     };
   }
 
+  const replacingMysticAmulet =
+    player.hero.instanceId === targetId &&
+    player.hero.equipment?.cardId === "colar-mistico" &&
+    cardDef.id !== "colar-mistico";
+
   // Check if target already has equipment
   const hasEquipment =
     player.hero.instanceId === targetId
-      ? !!player.hero.equipment
+      ? !!player.hero.equipment && !replacingMysticAmulet
       : player.units.some((u) => u.instanceId === targetId && u.equipment);
 
   if (hasEquipment) {
@@ -1757,9 +1762,16 @@ export function attachEquipment(
 
   let newHero = player.hero;
   let newUnits = [...player.units];
+  let newDiscard = player.discard;
+  let replaceLog: string[] = [];
   let found = false;
 
   if (player.hero.instanceId === targetId) {
+    if (replacingMysticAmulet && player.hero.equipment) {
+      const replacedDef = getCardById(player.hero.equipment.cardId);
+      newDiscard = replacedDef ? [...newDiscard, replacedDef] : newDiscard;
+      replaceLog = [`${player.hero.equipment.name} foi enviado ao descarte.`];
+    }
     newHero = { ...player.hero, equipment: item };
     found = true;
   } else {
@@ -1778,6 +1790,7 @@ export function attachEquipment(
   newPlayers[playerIdx] = {
     ...player,
     hand: filteredHand,
+    discard: newDiscard,
     hero: newHero,
     units: newUnits,
     mana: player.mana - cardDef.manaCost,
@@ -1785,7 +1798,7 @@ export function attachEquipment(
   return {
     ...state,
     players: newPlayers,
-    log: [...state.log, `${pi(playerIdx)} equipa ${cardDef.name}.`],
+    log: [...state.log, ...replaceLog, `${pi(playerIdx)} equipa ${cardDef.name}.`],
   };
 }
 
