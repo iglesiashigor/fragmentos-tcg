@@ -1320,7 +1320,6 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                            card={unit}
                            isBattleCard
                            size="sm"
-                           cosmeticFrame={playerCardFrame}
                            isSelected={selectedAttackers.includes(unit.instanceId)}
                             isValidTarget={(selectionMode === 'selectEquipTarget' && validTargets.includes(unit.instanceId)) || (selectionMode === 'selectMountTarget' && validTargets.includes(unit.instanceId)) || (selectionMode === 'selectAllyForEffect' && validTargets.includes(unit.instanceId)) || (selectionMode === 'selectSpellTarget' && validTargets.includes(unit.instanceId))}
                             isExhausted={unit.exhausted}
@@ -1349,7 +1348,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
               {/* Player terrain */}
               <div className="shrink-0">
                 {player.terrain ? (
-                  <CardDisplay card={player.terrain} isBattleCard size="sm" cosmeticFrame={playerCardFrame} onClick={() => setInspectedCard(player.terrain!)} />
+                  <CardDisplay card={player.terrain} isBattleCard size="sm" onClick={() => setInspectedCard(player.terrain!)} />
                 ) : (
                   <div className="card-size-sm rounded-lg empty-slot empty-slot-terrain flex items-center justify-center">
                     <span className="text-emerald-700/70 text-[10px]">Terreno</span>
@@ -1488,8 +1487,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                   <CardDisplay
                     card={card}
                     size="sm"
-                    cosmeticFrame={playerCardFrame}
-                    isValidTarget={canUseCardNow}
+                    isPlayable={canUseCardNow}
                     onClick={() => handleCardFromHand(card)}
                   />
                   <button
