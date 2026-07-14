@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { DeckDefinition } from '../types/game';
+import { CardDefinition, CardType, DeckDefinition } from '../types/game';
 import { DEFAULT_DECKS, deleteDeck, getSavedDecks } from '../data/defaultDecks';
 import { getCardById } from '../data/cards';
 import { useAuth } from '../lib/authContext';
@@ -47,6 +47,111 @@ function getLastPvpDeckId(): string | undefined {
 
 function saveLastPvpDeckId(deckId: string) {
   localStorage.setItem(LAST_PVP_DECK_KEY, deckId);
+}
+
+const CARD_TYPE_LABELS: Record<CardType, string> = {
+  hero: 'Heroi',
+  unit: 'Unidade',
+  terrain: 'Terreno',
+  equipment: 'Equipamento',
+  mount: 'Montaria',
+  spell: 'Feitico',
+  mana: 'Mana',
+};
+
+const CARD_TYPE_TONES: Partial<Record<CardType, string>> = {
+  unit: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-200',
+  spell: 'border-blue-500/25 bg-blue-500/10 text-blue-200',
+  terrain: 'border-teal-500/25 bg-teal-500/10 text-teal-200',
+  equipment: 'border-amber-500/25 bg-amber-500/10 text-amber-200',
+  mount: 'border-purple-500/25 bg-purple-500/10 text-purple-200',
+};
+
+type DeckCardEntry = {
+  cardId: string;
+  count: number;
+  group: 'Principais' | 'Neutras';
+  definition?: CardDefinition;
+};
+
+function getDeckEntries(deck: DeckDefinition): DeckCardEntry[] {
+  return [
+    ...deck.coreCards.map(card => ({ ...card, group: 'Principais' as const, definition: getCardById(card.cardId) })),
+    ...deck.neutralCards.map(card => ({ ...card, group: 'Neutras' as const, definition: getCardById(card.cardId) })),
+  ];
+}
+
+function getDeckAnalysis(deck: DeckDefinition) {
+  const entries = getDeckEntries(deck);
+  const totalCards = entries.reduce((sum, entry) => sum + entry.count, 0);
+  const manaCurve = [0, 1, 2, 3, 4, 5].map(cost => ({
+    cost,
+    label: cost === 5 ? '5+' : String(cost),
+    count: entries.reduce((sum, entry) => {
+      const manaCost = entry.definition?.manaCost ?? 0;
+      const inBucket = cost === 5 ? manaCost >= 5 : manaCost === cost;
+      return sum + (inBucket ? entry.count : 0);
+    }, 0),
+  }));
+  const maxCurveCount = Math.max(1, ...manaCurve.map(item => item.count));
+  const typeCounts = entries.reduce<Record<string, number>>((acc, entry) => {
+    const type = entry.definition?.type ?? 'spell';
+    acc[type] = (acc[type] ?? 0) + entry.count;
+    return acc;
+  }, {});
+  const lowCostCards = manaCurve.filter(item => item.cost <= 2).reduce((sum, item) => sum + item.count, 0);
+  const lateCostCards = manaCurve.find(item => item.cost === 5)?.count ?? 0;
+  const averageMana = totalCards > 0
+    ? entries.reduce((sum, entry) => sum + (entry.definition?.manaCost ?? 0) * entry.count, 0) / totalCards
+    : 0;
+  const effectTypes = new Set(entries.flatMap(entry => entry.definition?.effects.map(effect => effect.type) ?? []));
+  const typeEntries = Object.entries(typeCounts)
+    .map(([type, count]) => ({ type: type as CardType, count }))
+    .sort((a, b) => b.count - a.count);
+  const keyCards = entries
+    .filter(entry => entry.definition)
+    .slice()
+    .sort((a, b) => {
+      const aScore = (a.definition?.effects.length ?? 0) * 10 + (a.definition?.manaCost ?? 0) + a.count;
+      const bScore = (b.definition?.effects.length ?? 0) * 10 + (b.definition?.manaCost ?? 0) + b.count;
+      return bScore - aScore;
+    })
+    .slice(0, 4);
+
+  const strengths: string[] = [];
+  if (effectTypes.has('damage') || effectTypes.has('damageAllUnits')) strengths.push('Dano e controle de mesa');
+  if (effectTypes.has('drawCard') || effectTypes.has('searchCard')) strengths.push('Busca e compra de cartas');
+  if (effectTypes.has('recoverFromDiscard')) strengths.push('Valor no descarte');
+  if (effectTypes.has('heal') || effectTypes.has('healAllUnits')) strengths.push('Sustentacao');
+  if (effectTypes.has('attackAgain') || effectTypes.has('allUnitsAttackTwice')) strengths.push('Ataques extras');
+  if ((typeCounts.equipment ?? 0) + (typeCounts.mount ?? 0) >= 4) strengths.push('Pressao com itens');
+  if (strengths.length === 0) strengths.push('Plano direto e consistente');
+
+  const care: string[] = [];
+  if ((typeCounts.unit ?? 0) < 8) care.push('Poucas unidades no baralho');
+  if (averageMana >= 3.4) care.push('Pode comecar mais lento');
+  if (effectTypes.has('recoverFromDiscard')) care.push('Algumas cartas dependem do descarte');
+  if ((typeCounts.equipment ?? 0) > 4) care.push('Evite comprar itens sem alvo livre');
+  if (care.length === 0) care.push('Curva estavel para partidas longas');
+
+  const plan = lowCostCards >= lateCostCards + 5
+    ? 'Comeca cedo, ocupa a mesa e tenta manter pressao constante.'
+    : lateCostCards >= lowCostCards
+    ? 'Procura sobreviver ao inicio e ganhar valor no meio/fim da partida.'
+    : 'Tem curva equilibrada e consegue alternar entre campo, recursos e combate.';
+
+  return {
+    averageMana,
+    care,
+    entries,
+    keyCards,
+    manaCurve,
+    maxCurveCount,
+    plan,
+    strengths,
+    totalCards,
+    typeEntries,
+  };
 }
 
 export default function MainMenuLobby({
@@ -200,6 +305,8 @@ export default function MainMenuLobby({
     onStartPvp(playerDeck);
   };
 
+  const previewDeckAnalysis = previewDeck ? getDeckAnalysis(previewDeck) : null;
+
   return (
     <div className="min-h-screen game-bg text-white">
       {confirmDialog && (
@@ -243,7 +350,7 @@ export default function MainMenuLobby({
             if (event.target === event.currentTarget) setPreviewDeck(null);
           }}
         >
-          <div className="flex max-h-[86vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl shadow-black/50">
+          <div className="flex max-h-[86vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl shadow-black/50">
             <div className="flex items-start justify-between gap-4 border-b border-slate-800 p-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -277,6 +384,97 @@ export default function MainMenuLobby({
                 </div>
               </div>
 
+              {previewDeckAnalysis && (
+                <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_1.15fr]">
+                  <section className="rounded-xl border border-slate-800 bg-slate-900/55 p-3">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Resumo</h3>
+                        <p className="mt-1 text-sm text-slate-300">{previewDeckAnalysis.plan}</p>
+                      </div>
+                      <div className="rounded-lg border border-blue-500/25 bg-blue-500/10 px-3 py-2 text-center">
+                        <p className="text-lg font-black text-blue-100">{previewDeckAnalysis.averageMana.toFixed(1)}</p>
+                        <p className="text-[10px] font-black uppercase tracking-wide text-blue-300">Mana media</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {previewDeckAnalysis.typeEntries.map(({ type, count }) => (
+                        <div key={type} className={`rounded-lg border px-3 py-2 ${CARD_TYPE_TONES[type] ?? 'border-slate-700 bg-slate-950 text-slate-300'}`}>
+                          <p className="text-sm font-black">{count}</p>
+                          <p className="text-[10px] font-black uppercase tracking-wide opacity-80">{CARD_TYPE_LABELS[type]}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="rounded-xl border border-slate-800 bg-slate-900/55 p-3">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Curva de mana</h3>
+                      <span className="text-xs text-slate-500">{previewDeckAnalysis.totalCards} cartas</span>
+                    </div>
+                    <div className="grid grid-cols-6 items-end gap-2">
+                      {previewDeckAnalysis.manaCurve.map(item => (
+                        <div key={item.label} className="flex min-h-[7.5rem] flex-col items-center justify-end gap-2">
+                          <div className="text-xs font-black text-slate-300">{item.count}</div>
+                          <div className="flex h-20 w-full items-end rounded-lg border border-slate-800 bg-slate-950/70 p-1">
+                            <div
+                              className="w-full rounded-md bg-amber-400"
+                              style={{ height: `${Math.max(8, (item.count / previewDeckAnalysis.maxCurveCount) * 100)}%` }}
+                            />
+                          </div>
+                          <div className="text-[11px] font-black text-slate-500">{item.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="rounded-xl border border-slate-800 bg-slate-900/55 p-3">
+                    <h3 className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Pontos fortes</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {previewDeckAnalysis.strengths.map(strength => (
+                        <span key={strength} className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-200">
+                          {strength}
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="rounded-xl border border-slate-800 bg-slate-900/55 p-3">
+                    <h3 className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Cuidados</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {previewDeckAnalysis.care.map(item => (
+                        <span key={item} className="rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-200">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="lg:col-span-2 rounded-xl border border-slate-800 bg-slate-900/55 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <h3 className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Cartas-chave</h3>
+                      <span className="text-xs text-slate-500">Calculado por efeito, custo e copias</span>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                      {previewDeckAnalysis.keyCards.map(entry => (
+                        <div key={`key-${entry.cardId}`} className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
+                          <div className="mb-2 flex items-start justify-between gap-2">
+                            <p className="text-sm font-black text-white">{entry.definition?.name ?? entry.cardId}</p>
+                            <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[11px] font-black text-amber-200">
+                              x{entry.count}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            {CARD_TYPE_LABELS[entry.definition?.type ?? 'spell']} • {entry.definition?.manaCost ?? '-'} mana
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+              )}
+
               {(['Principais', 'Neutras'] as const).map(group => {
                 const cards = formatDeckCards(previewDeck).filter(card => card.group === group);
                 if (cards.length === 0) return null;
@@ -299,11 +497,7 @@ export default function MainMenuLobby({
                             <div className="min-w-0">
                               <p className="truncate text-sm font-bold text-white">{definition?.name ?? card.cardId}</p>
                               <p className="text-xs text-slate-500">
-                                {definition?.type === 'unit' ? 'Unidade' :
-                                  definition?.type === 'spell' ? 'Feitico' :
-                                  definition?.type === 'equipment' ? 'Equipamento' :
-                                  definition?.type === 'mount' ? 'Montaria' :
-                                  definition?.type === 'terrain' ? 'Terreno' : 'Carta'}
+                                {definition ? CARD_TYPE_LABELS[definition.type] : 'Carta'}
                               </p>
                             </div>
                             <span className="rounded-full border border-blue-500/25 bg-blue-500/10 px-2 py-1 text-[11px] font-black text-blue-200">
