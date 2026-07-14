@@ -1,5 +1,5 @@
 import React from 'react';
-import { CardDefinition, BattleCard, AttachedItem, ConditionName } from '../types/game';
+import { CardDefinition, BattleCard, AttachedItem, CardEffect, CardType, ConditionName } from '../types/game';
 import { Shield, Sword, Heart, Zap, Star, Leaf, X } from 'lucide-react';
 
 interface CardInspectorProps {
@@ -29,9 +29,41 @@ const CONDITION_INFO: Record<ConditionName, { label: string; color: string; desc
   stealth: { label: 'Furtivo', color: 'text-gray-300', desc: 'Pode atacar herói direto (1 turno)' },
 };
 
-const TYPE_LABELS: Record<string, string> = {
+const TYPE_LABELS: Record<CardType, string> = {
   hero: 'Herói', unit: 'Unidade', terrain: 'Terreno',
   equipment: 'Equipamento', mount: 'Montaria', spell: 'Feitiço', mana: 'Mana',
+};
+
+const CARD_TYPE_EFFECT_LABELS: Record<CardType, string> = {
+  hero: 'herói',
+  unit: 'unidade',
+  terrain: 'terreno',
+  equipment: 'equipamento',
+  mount: 'montaria',
+  spell: 'feitiço',
+  mana: 'mana',
+};
+
+const TIMING_LABELS: Record<NonNullable<CardEffect['timing']>, string> = {
+  onPlay: 'Ao usar',
+  onSummon: 'Ao invocar',
+  activated: 'Ativado',
+  startOfTurn: 'Início do turno',
+  onAttack: 'Ao atacar',
+  onDefend: 'Ao defender',
+  onDeath: 'Ao morrer',
+  onDamageDealt: 'Ao causar dano',
+};
+
+const TARGET_LABELS: Record<NonNullable<CardEffect['target']>, string> = {
+  self: 'a si mesmo',
+  ally: 'um aliado',
+  enemy: 'um inimigo',
+  allAllies: 'todos os aliados',
+  allEnemies: 'todos os inimigos',
+  allUnits: 'todas as unidades',
+  hero: 'o herói',
+  anyUnit: 'uma unidade ou herói',
 };
 
 function AttachedItemInfo({ item, label }: { item: AttachedItem; label: string }) {
@@ -175,53 +207,85 @@ export default function CardInspector({ card, onClose }: CardInspectorProps) {
   );
 }
 
-function formatEffect(eff: any): string {
-  const timingMap: Record<string, string> = {
-    onPlay: 'Ao usar',
-    onSummon: 'Ao ser invocado',
-    activated: 'Ativado (exausta)',
-    startOfTurn: 'Início do turno',
-    onAttack: 'Ao atacar',
-    onDefend: 'Ao defender',
-    onDeath: 'Ao morrer',
-    onDamageDealt: 'Ao causar dano',
-  };
-  const timing = timingMap[eff.timing] || eff.timing || '';
+function formatEffect(eff: CardEffect): string {
+  const timing = eff.timing ? TIMING_LABELS[eff.timing] : '';
+  const target = eff.target ? TARGET_LABELS[eff.target] : 'o alvo';
+  const condition = eff.condition ? CONDITION_INFO[eff.condition].label : 'condição';
+  const cardType = eff.cardType ? CARD_TYPE_EFFECT_LABELS[eff.cardType] : 'carta';
+  const value = eff.value ?? 0;
 
-  const effectDesc: Record<string, string> = {
-    damage: `Causa ${eff.value ?? 0} de dano`,
-    heal: `Cura ${eff.value ?? 0} de vida`,
-    defenseBonus: `+${eff.value ?? 0} DEF ao receber ataque`,
-    applyCondition: `Aplica condição: ${eff.condition}`,
-    removeCondition: `Remove condição negativa`,
-    removeAllNegativeConditions: `Remove todas as condições negativas dos aliados`,
-    drawCard: `Compre ${eff.value ?? 1} carta(s)`,
-    searchCard: `Busque ${eff.cardName || eff.cardType || 'uma carta'} do baralho`,
-    recoverFromDiscard: `Recupere ${eff.cardType || 'uma carta'} do descarte`,
-    dealDamageToConditioned: `Causa ${eff.value ?? 2} de dano a inimigos com ${eff.condition}`,
-    attackAgain: `Uma unidade ataca novamente`,
-    attackTwice: `Uma unidade ataca duas vezes`,
-    allUnitsAttackTwice: `Unidades atacam duas vezes neste turno`,
-    damageAllUnits: `Causa ${eff.value ?? 0} de dano a todas as unidades`,
-    healAllUnits: `Cura ${eff.value ?? 0} de vida de todas as unidades aliadas`,
-    applyConditionAllUnits: `Aplica ${eff.condition} a todas as unidades`,
-    removeConditionAllUnits: `Remove condições das unidades`,
-    increaseMana: `+${eff.value ?? 1} de mana`,
-    increaseUnitSlots: `+${eff.value ?? 1} espaço de unidade`,
-    reduceSpellCost: `Reduz custo de feitiços em ${eff.value ?? 1}`,
-    reduceUnitCost: `Reduz custo de unidades em ${eff.value ?? 1}`,
-    terrainStartOfTurn: (() => {
-      const statType = eff.statType ?? 'heal';
-      const v = eff.value ?? 0;
-      if (statType === 'attack') return `+${v} ATK para todos os aliados`;
-      if (statType === 'defense') return `+${v} DEF para todos os aliados`;
-      return `Cura ${v} de vida de todos os aliados`;
-    })(),
-    destroyTerrain: `Destrói o terreno do oponente`,
-    recoverEquipmentDurability: `Recupera ${eff.value ?? 1} de durabilidade de um equipamento`,
-    bonusAttackPerDamageTaken: `+1 ATK para cada dano sofrido pela unidade`,
-  };
+  const desc = (() => {
+    switch (eff.type) {
+      case 'damage':
+        return `Causa ${value} de dano a ${target}.`;
+      case 'heal':
+        return `Cura ${value} de vida de ${target}.`;
+      case 'defenseBonus':
+        return `Concede +${value} DEF ao defender.`;
+      case 'applyCondition':
+        return `Aplica ${condition} a ${target}.`;
+      case 'removeCondition':
+        return `Remove uma condição negativa de ${target}.`;
+      case 'removeAllNegativeConditions':
+        return 'Remove todas as condições negativas dos aliados.';
+      case 'drawCard':
+        return `Compre ${formatCount(eff.value ?? 1, 'carta')}.`;
+      case 'searchCard':
+        return eff.cardName
+          ? `Busca ${eff.cardName} no baralho e coloca na mão.`
+          : `Busca uma carta do tipo ${cardType} no baralho e coloca na mão.`;
+      case 'recoverFromDiscard':
+        return `Recupera uma carta do tipo ${cardType} do descarte.`;
+      case 'dealDamageToConditioned':
+        return `Causa ${eff.value ?? 2} de dano a inimigos com ${condition}.`;
+      case 'attackAgain':
+        return 'Permite que um aliado que já atacou ataque novamente neste turno.';
+      case 'attackTwice':
+        return 'Permite que um aliado ataque duas vezes neste turno.';
+      case 'allUnitsAttackTwice':
+        return 'Permite que suas unidades que já atacaram ataquem novamente neste turno.';
+      case 'damageAllUnits':
+        return `Causa ${value} de dano a todas as unidades inimigas.`;
+      case 'healAllUnits':
+        return `Cura ${value} de vida de todos os aliados.`;
+      case 'applyConditionAllUnits':
+        return `Aplica ${condition} a ${target}.`;
+      case 'removeConditionAllUnits':
+        return 'Remove condições das unidades escolhidas.';
+      case 'increaseMana':
+        return `Aumenta sua mana máxima em ${eff.value ?? 1} enquanto estiver equipado.`;
+      case 'increaseUnitSlots':
+        return `Aumenta o limite de unidades em campo em ${eff.value ?? 1}.`;
+      case 'reduceSpellCost':
+        return `Reduz em ${eff.value ?? 1} o custo dos feitiços na sua mão.`;
+      case 'reduceUnitCost':
+        return `Reduz em ${eff.value ?? 1} o custo das unidades na sua mão.`;
+      case 'terrainStartOfTurn':
+        if (eff.statType === 'attack') return `Concede +${value} ATK a todos os aliados.`;
+        if (eff.statType === 'defense') return `Concede +${value} DEF a todos os aliados.`;
+        return `Cura ${value} de vida de todos os aliados.`;
+      case 'destroyTerrain':
+        return 'Destrói o terreno do oponente.';
+      case 'recoverEquipmentDurability':
+        return `Recupera ${eff.value ?? 1} de durabilidade de um equipamento aliado.`;
+      case 'bonusAttackPerDamageTaken':
+        return 'Concede ATK igual ao dano que o aliado já sofreu.';
+      case 'attackBonus':
+        return `Concede +${eff.value ?? 0} ATK a um aliado.`;
+      case 'poisonOnDamage':
+        return `Quando um aliado causa dano, aplica ${condition} ao alvo.`;
+      case 'drawOnAllyDeath':
+        return `Quando um aliado morre, compre ${formatCount(eff.value ?? 1, 'carta')}.`;
+      case 'drawOnRecoverUnit':
+        return `Quando recuperar uma unidade do descarte, compre ${formatCount(eff.value ?? 1, 'carta')}.`;
+      default:
+        return eff.type;
+    }
+  })();
 
-  const desc = effectDesc[eff.type] || eff.type;
   return timing ? `[${timing}] ${desc}` : desc;
+}
+
+function formatCount(count: number, singular: string) {
+  return `${count} ${singular}${count === 1 ? '' : 's'}`;
 }
