@@ -8,6 +8,7 @@ export interface PlayerMatchResult {
   id: string;
   match_uid: string;
   player_id: string;
+  season_id?: string | null;
   opponent_id: string | null;
   opponent_name: string | null;
   mode: MatchMode;
@@ -30,6 +31,16 @@ export interface RankingProfile {
   losses: number;
   draws: number;
   rating: number;
+}
+
+export interface SeasonInfo {
+  id: string;
+  slug: string;
+  name: string;
+  starts_at: string;
+  ends_at: string;
+  status: 'upcoming' | 'active' | 'finished';
+  rating_baseline: number;
 }
 
 export interface PlayerSummary {
@@ -80,6 +91,7 @@ export async function savePlayerMatchResult(input: {
 }) {
   const finishReason = input.finishReason ?? 'normal';
   const delta = getRatingDelta(input.mode, input.result, finishReason);
+  const seasonResult = await fetchActiveSeason();
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -106,6 +118,7 @@ export async function savePlayerMatchResult(input: {
       rating_delta: delta,
       rating_after: input.mode === 'pvp' ? nextRating : currentRating,
       match_log: sanitizeMatchLog(input.matchLog),
+      season_id: seasonResult.data?.id ?? null,
     }, { onConflict: 'match_uid,player_id' });
 
   if (insertError) return { error: insertError.message };
@@ -150,6 +163,44 @@ export async function saveSecurePvpMatchResult(input: {
 }
 
 export async function fetchRanking(limit = 50) {
+  const seasonResult = await fetchActiveSeason();
+  const activeSeason = seasonResult.data;
+  if (activeSeason) {
+    const { data, error } = await supabase
+      .from('season_player_standings')
+      .select(`
+        player_id,
+        wins,
+        losses,
+        draws,
+        rating,
+        username_snapshot,
+        profiles (
+          id,
+          username,
+          avatar_url
+        )
+      `)
+      .eq('season_id', activeSeason.id)
+      .order('rating', { ascending: false })
+      .order('wins', { ascending: false })
+      .limit(limit);
+
+    if (!error) {
+      const mapped = (data ?? []).map((item: any) => ({
+        id: item.profiles?.id ?? item.player_id,
+        username: item.profiles?.username ?? item.username_snapshot ?? 'Jogador',
+        avatar_url: item.profiles?.avatar_url ?? null,
+        wins: item.wins ?? 0,
+        losses: item.losses ?? 0,
+        draws: item.draws ?? 0,
+        rating: item.rating ?? activeSeason.rating_baseline,
+      })) as RankingProfile[];
+
+      return { data: mapped, error: null, season: activeSeason };
+    }
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .select('id, username, avatar_url, wins, losses, draws, rating')
@@ -157,10 +208,25 @@ export async function fetchRanking(limit = 50) {
     .order('wins', { ascending: false })
     .limit(limit);
 
-  return { data: (data ?? []) as RankingProfile[], error: error?.message ?? null };
+  return { data: (data ?? []) as RankingProfile[], error: error?.message ?? null, season: activeSeason };
 }
 
-export async function fetchPlayerHistory(playerId: string, mode?: MatchMode) {
+export async function fetchActiveSeason() {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('seasons')
+    .select('*')
+    .eq('status', 'active')
+    .lte('starts_at', now)
+    .gt('ends_at', now)
+    .order('starts_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return { data: data as SeasonInfo | null, error: error?.message ?? null };
+}
+
+export async function fetchPlayerHistory(playerId: string, mode?: MatchMode, seasonId?: string | null) {
   let query = supabase
     .from('player_match_results')
     .select('*')
@@ -169,6 +235,7 @@ export async function fetchPlayerHistory(playerId: string, mode?: MatchMode) {
     .limit(mode ? 5 : 10);
 
   if (mode) query = query.eq('mode', mode);
+  if (seasonId) query = query.eq('season_id', seasonId);
 
   const { data, error } = await query;
   return { data: (data ?? []) as PlayerMatchResult[], error: error?.message ?? null };
