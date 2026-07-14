@@ -122,7 +122,7 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
   if (showBack) {
     return (
       <div
-        className={`${sizeClasses[size]} rounded-lg bg-gradient-to-br from-slate-700 via-slate-800 to-slate-950 border-2 border-slate-600/80 flex items-center justify-center ${clickable} transition-all relative overflow-hidden shadow-lg shadow-black/30`}
+        className={`${sizeClasses[size]} rounded-lg card-back flex items-center justify-center ${clickable} transition-all relative overflow-hidden shadow-lg shadow-black/30`}
         onClick={onClick}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-slate-500/20 via-transparent to-black/30" />
@@ -136,10 +136,13 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
 
   return (
     <div
-      className={`${sizeClasses[size]} rounded-lg bg-gradient-to-br ${colorClass} border-2 flex flex-col overflow-hidden transition-all duration-200 shadow-lg shadow-black/30 ${selected} ${validTarget} ${clickable} ${exhausted ? 'opacity-55 grayscale-[35%]' : ''} ${tierClass} ${heroClass} ${cosmeticClass} relative select-none`}
+      className={`${sizeClasses[size]} rounded-lg tcg-card card-type-${type} bg-gradient-to-br ${colorClass} border-2 flex flex-col overflow-hidden transition-all duration-200 shadow-lg shadow-black/30 ${selected} ${validTarget} ${clickable} ${exhausted ? 'opacity-55 grayscale-[35%]' : ''} ${tierClass} ${heroClass} ${cosmeticClass} relative select-none`}
       onClick={onClick}
       title={card.name}
     >
+      <div className="absolute inset-[3px] rounded-md border border-white/10 pointer-events-none z-[1]" />
+      <div className="absolute inset-0 card-foil-texture pointer-events-none z-[1]" />
+
       {/* Mana cost - crystal design */}
       <div className="absolute top-1 left-1 w-6 h-6 z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-blue-600 rounded-md transform rotate-45 border border-blue-300/50 shadow-lg">
@@ -160,8 +163,8 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
       </div>
 
       {/* Art area with thematic gradient */}
-      <div className="flex-1 flex items-center justify-center px-1 pt-6 pb-1 min-h-0">
-        <div className={`w-full h-full rounded bg-gradient-to-br ${artGradient} flex items-center justify-center relative overflow-hidden border border-white/5`}>
+      <div className="flex-1 flex items-center justify-center px-1 pt-6 pb-1 min-h-0 relative z-[2]">
+        <div className={`w-full h-full rounded-md card-art-window bg-gradient-to-br ${artGradient} flex items-center justify-center relative overflow-hidden border border-white/10`}>
           {showImage && (
             <img
               src={imageSrc}
@@ -185,7 +188,7 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
 
       {/* Stats row with icons */}
       {showsCombatStats && (attack !== undefined || defense !== undefined || health !== undefined) && (
-        <div className="flex justify-between items-center px-1 py-0.5 stat-bar">
+        <div className="flex justify-between items-center px-1 py-0.5 stat-bar relative z-[2]">
           {attack !== undefined && (
             <div className="flex items-center gap-0.5">
               <Sword className="w-2.5 h-2.5 text-red-400 shrink-0" />
@@ -218,7 +221,7 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
       )}
 
       {/* Type label */}
-      <div className="bg-black/50 px-1 py-0.5 text-center border-t border-white/5">
+      <div className="card-type-band px-1 py-0.5 text-center border-t border-white/10 relative z-[2]">
         <span className="text-white/70 font-medium" style={{ fontSize: '0.5rem' }}>
           {TYPE_LABELS[type]}{tier ? ` ${TIER_LABELS[tier]}` : ''}
         </span>

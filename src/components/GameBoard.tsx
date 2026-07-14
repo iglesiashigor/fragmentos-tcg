@@ -16,7 +16,7 @@ import GameLog from './GameLog';
 import {
   Sword, Star, ChevronRight,
   Trash2, Hand, Layers, Eye, Zap, Shield,
-  Flag, Clock, AlertTriangle, X,
+  Flag, Clock, AlertTriangle, X, Heart, Sparkles,
 } from 'lucide-react';
 
 export interface BoardCosmetics {
@@ -909,6 +909,41 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
   const actionPanelClass = 'bg-slate-950/70 border border-slate-700/70 rounded-xl px-3 py-2 shadow-xl shadow-black/20';
   const playmatClass = cosmetics?.playmat ? `playmat-${cosmetics.playmat.replace(/_/g, '-')}` : 'playmat-default';
   const playerCardFrame = cosmetics?.cardFrame ?? 'default';
+  const latestLogEntry = gameState.log[gameState.log.length - 1] ?? '';
+  const recentFeedback = (() => {
+    const entry = latestLogEntry.toLowerCase();
+    if (!entry) return null;
+    if (entry.includes('turno')) {
+      return {
+        label: 'Turno',
+        text: latestLogEntry,
+        tone: 'turn',
+        icon: <Sparkles className="h-3.5 w-3.5" />,
+      };
+    }
+    if (entry.includes('dano') || entry.includes('derrotad')) {
+      return {
+        label: 'Dano',
+        text: latestLogEntry,
+        tone: 'damage',
+        icon: <Sword className="h-3.5 w-3.5" />,
+      };
+    }
+    if (entry.includes('cura') || entry.includes('recupera')) {
+      return {
+        label: 'Cura',
+        text: latestLogEntry,
+        tone: 'heal',
+        icon: <Heart className="h-3.5 w-3.5" />,
+      };
+    }
+    return {
+      label: 'Evento',
+      text: latestLogEntry,
+      tone: 'event',
+      icon: <Zap className="h-3.5 w-3.5" />,
+    };
+  })();
 
   return (
     <div
@@ -1151,10 +1186,11 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
         </div>
 
         {/* Center: Battlefield */}
-        <div className="flex-1 flex flex-col gap-2 min-w-0">
+        <div className="flex-1 flex flex-col gap-2 min-w-0 battle-arena">
 
           {/* Opponent zone */}
-          <div className="flex-1 rounded-2xl border border-rose-700/25 bg-gradient-to-b from-rose-950/20 via-slate-900/40 to-slate-950/20 p-3 flex flex-col gap-2 min-h-0 shadow-inner shadow-black/20">
+          <div className="flex-1 rounded-2xl battle-zone battle-zone-opponent bg-gradient-to-b from-rose-950/20 via-slate-900/40 to-slate-950/20 p-3 flex flex-col gap-2 min-h-0 shadow-inner shadow-black/20">
+            <div className="battle-zone-label text-rose-200/55">Campo adversario</div>
             {/* Opponent header */}
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-rose-950/60 border border-rose-700/40 flex items-center justify-center">
@@ -1179,7 +1215,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
             <div className="flex-1 flex gap-3 items-center justify-center min-h-0">
               {/* Opponent deck pile */}
               <div className="flex flex-col items-center gap-1 shrink-0">
-                <div className="relative w-12 h-16 rounded-lg bg-gradient-to-br from-slate-700 to-slate-900 border-2 border-slate-600/50 shadow-lg flex items-center justify-center">
+                <div className="relative w-12 h-16 rounded-lg deck-pile shadow-lg flex items-center justify-center">
                   <Layers className="w-4 h-4 text-slate-500" />
                   <span className="absolute -bottom-1 -right-1 bg-slate-800 text-slate-300 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border border-slate-600">
                     {ai.deck.length}
@@ -1193,7 +1229,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                 {ai.terrain ? (
                   <CardDisplay card={ai.terrain} isBattleCard size="sm" onClick={() => setInspectedCard(ai.terrain!)} />
                 ) : (
-                  <div className="card-size-sm rounded-lg border border-dashed border-emerald-700/35 bg-emerald-950/10 flex items-center justify-center">
+                  <div className="card-size-sm rounded-lg empty-slot empty-slot-terrain flex items-center justify-center">
                     <span className="text-emerald-700/70 text-[10px]">Terreno</span>
                   </div>
                 )}
@@ -1213,7 +1249,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                       onClick={() => handleBattleCardClick(unit, oppIdx)}
                     />
                   ) : (
-                    <div key={i} className="card-size-sm rounded-lg border border-dashed border-slate-700/35 bg-slate-950/25 flex items-center justify-center">
+                    <div key={i} className="card-size-sm rounded-lg empty-slot flex items-center justify-center">
                       <span className="text-slate-700 text-[9px]">Unidade</span>
                     </div>
                   );
@@ -1234,7 +1270,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
           </div>
 
           {/* Center divider with phase indicator */}
-          <div className="flex items-center gap-3 py-1">
+          <div className="flex items-center gap-3 py-1 battle-divider">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
             <div className={`px-4 py-1 rounded-full text-xs font-semibold border shadow-lg shadow-black/20 ${
               gameMessage
@@ -1243,11 +1279,19 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
             }`}>
               {gameMessage || currentInstruction}
             </div>
+            {recentFeedback && (
+              <div className={`hidden min-[1120px]:flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold turn-feedback turn-feedback-${recentFeedback.tone}`}>
+                {recentFeedback.icon}
+                <span className="uppercase tracking-wide">{recentFeedback.label}</span>
+                <span className="max-w-[22rem] truncate font-semibold opacity-85">{recentFeedback.text}</span>
+              </div>
+            )}
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
           </div>
 
           {/* Player zone */}
-          <div className={`flex-1 rounded-2xl border border-blue-700/25 ${playmatClass} p-3 flex flex-col gap-2 min-h-0 shadow-inner shadow-black/20`}>
+          <div className={`flex-1 rounded-2xl battle-zone battle-zone-player ${playmatClass} p-3 flex flex-col gap-2 min-h-0 shadow-inner shadow-black/20`}>
+            <div className="battle-zone-label text-blue-200/55">Seu campo</div>
             {/* Player battlefield row */}
             <div className="flex-1 flex gap-3 items-center justify-center min-h-0">
               {/* Player hero */}
@@ -1293,7 +1337,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                           )}
                         </>
                       ) : (
-                        <div className="card-size-sm rounded-lg border border-dashed border-slate-700/35 bg-slate-950/25 flex items-center justify-center">
+                        <div className="card-size-sm rounded-lg empty-slot flex items-center justify-center">
                           <span className="text-slate-700 text-[9px]">Unidade</span>
                         </div>
                       )}
@@ -1307,7 +1351,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                 {player.terrain ? (
                   <CardDisplay card={player.terrain} isBattleCard size="sm" cosmeticFrame={playerCardFrame} onClick={() => setInspectedCard(player.terrain!)} />
                 ) : (
-                  <div className="card-size-sm rounded-lg border border-dashed border-emerald-700/35 bg-emerald-950/10 flex items-center justify-center">
+                  <div className="card-size-sm rounded-lg empty-slot empty-slot-terrain flex items-center justify-center">
                     <span className="text-emerald-700/70 text-[10px]">Terreno</span>
                   </div>
                 )}
@@ -1315,7 +1359,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
 
               {/* Player deck pile */}
               <div className="flex flex-col items-center gap-1 shrink-0">
-                <div className="relative w-12 h-16 rounded-lg bg-gradient-to-br from-slate-700 to-slate-900 border-2 border-slate-600/50 shadow-lg flex items-center justify-center">
+                <div className="relative w-12 h-16 rounded-lg deck-pile shadow-lg flex items-center justify-center">
                   <Layers className="w-4 h-4 text-slate-500" />
                   <span className="absolute -bottom-1 -right-1 bg-slate-800 text-slate-300 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border border-slate-600">
                     {player.deck.length}
@@ -1428,7 +1472,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
           )}
 
           {/* Hand */}
-          <div className={`${playmatClass} rounded-xl border border-slate-700/70 p-2.5 shadow-xl shadow-black/20`}>
+          <div className={`${playmatClass} hand-zone rounded-xl p-2.5 shadow-xl shadow-black/20`}>
             <div className="flex items-center gap-2 mb-2">
               <Hand className="w-3.5 h-3.5 text-slate-500" />
               <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Mão ({player.hand.length})</span>
