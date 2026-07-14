@@ -161,6 +161,11 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
   const seasonDaysRemaining = seasonEndsAt
     ? Math.max(0, Math.ceil((seasonEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : null;
+  const nextRank = CRYSTAL_RANKS.find(rankInfo => rankInfo.min > rating) ?? null;
+  const pointsToNextRank = nextRank ? Math.max(0, nextRank.min - rating) : 0;
+  const rankProgressPercent = nextRank
+    ? Math.min(100, Math.max(0, Math.round(((rating - rank.min) / Math.max(1, nextRank.min - rank.min)) * 100)))
+    : 100;
 
   const updateProgress = (nextProgress: PlayerProgress) => {
     setProgress(nextProgress);
@@ -385,6 +390,34 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
                 <p className="text-lg font-black text-white">{seasonDaysRemaining ?? '-'}</p>
                 <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Dias</p>
               </div>
+            </div>
+          </div>
+          <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/55 p-4">
+            <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2">
+                <Gem className={`h-4 w-4 ${rank.color}`} />
+                <span className={`text-sm font-black ${rank.color}`}>{rank.name}</span>
+                {nextRank && (
+                  <>
+                    <ChevronRight className="h-3.5 w-3.5 text-slate-600" />
+                    <span className={`text-sm font-black ${nextRank.color}`}>{nextRank.name}</span>
+                  </>
+                )}
+              </div>
+              <span className="text-xs font-bold text-slate-400">
+                {nextRank ? `Faltam ${pointsToNextRank} pts para o proximo elo` : 'Elo maximo da temporada'}
+              </span>
+            </div>
+            <div className="h-3 overflow-hidden rounded-full border border-slate-700 bg-slate-950">
+              <div
+                className="h-full bg-gradient-to-r from-amber-400 via-emerald-400 to-cyan-300"
+                style={{ width: `${rankProgressPercent}%` }}
+              />
+            </div>
+            <div className="mt-2 flex justify-between text-[11px] font-bold text-slate-500">
+              <span>{rank.min} pts</span>
+              <span>{rankProgressPercent}%</span>
+              <span>{nextRank ? `${nextRank.min} pts` : `${rating} pts`}</span>
             </div>
           </div>
         </div>
