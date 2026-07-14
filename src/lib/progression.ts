@@ -607,7 +607,28 @@ export function isLocalTestAccount(email?: string | null) {
   return isLocalHost && email?.trim().toLowerCase() === 'teste@teste.com.br';
 }
 
+const LOCAL_TEST_PROGRESS_KEY = 'fragmentos-local-test-progress';
+
+function getLocalTestCosmetics() {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_TEST_PROGRESS_KEY) ?? '{}') as Partial<PlayerProgress>;
+  } catch {
+    return {};
+  }
+}
+
+function saveLocalTestCosmetics(progress: PlayerProgress) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(LOCAL_TEST_PROGRESS_KEY, JSON.stringify({
+    equipped_profile_frame: progress.equipped_profile_frame,
+    equipped_card_frame: progress.equipped_card_frame,
+    equipped_playmat: progress.equipped_playmat,
+  }));
+}
+
 export function localTestPlayerProgress(playerId: string): PlayerProgress {
+  const savedCosmetics = getLocalTestCosmetics();
   return {
     player_id: playerId,
     level: 50,
@@ -623,11 +644,11 @@ export function localTestPlayerProgress(playerId: string): PlayerProgress {
     achievement_progress: Object.fromEntries(ACHIEVEMENTS.map(achievement => [achievement.id, achievement.target])),
     completed_achievements: ACHIEVEMENTS.map(achievement => achievement.id),
     supporter: true,
-    equipped_profile_frame: 'sapphire',
+    equipped_profile_frame: savedCosmetics.equipped_profile_frame ?? 'sapphire',
     unlocked_profile_frames: PROFILE_FRAMES.map(frame => frame.id),
-    equipped_card_frame: 'default',
+    equipped_card_frame: savedCosmetics.equipped_card_frame ?? 'default',
     unlocked_card_frames: CARD_FRAMES.map(frame => frame.id),
-    equipped_playmat: 'default',
+    equipped_playmat: savedCosmetics.equipped_playmat ?? 'default',
     unlocked_playmats: PLAYMATS.map(playmat => playmat.id),
     updated_at: new Date().toISOString(),
   };
@@ -649,13 +670,15 @@ export async function fetchPlayerProgress(playerId: string, email?: string | nul
 
 export async function equipProfileFrame(playerId: string, frameId: string, email?: string | null) {
   if (isLocalTestAccount(email)) {
+    const progress = {
+      ...localTestPlayerProgress(playerId),
+      equipped_profile_frame: frameId,
+      updated_at: new Date().toISOString(),
+    };
+    saveLocalTestCosmetics(progress);
     return {
       error: null,
-      progress: {
-        ...localTestPlayerProgress(playerId),
-        equipped_profile_frame: frameId,
-        updated_at: new Date().toISOString(),
-      },
+      progress,
     };
   }
 
@@ -689,13 +712,15 @@ export async function equipProfileFrame(playerId: string, frameId: string, email
 
 export async function equipCardFrame(playerId: string, frameId: string, email?: string | null) {
   if (isLocalTestAccount(email)) {
+    const progress = {
+      ...localTestPlayerProgress(playerId),
+      equipped_card_frame: frameId,
+      updated_at: new Date().toISOString(),
+    };
+    saveLocalTestCosmetics(progress);
     return {
       error: null,
-      progress: {
-        ...localTestPlayerProgress(playerId),
-        equipped_card_frame: frameId,
-        updated_at: new Date().toISOString(),
-      },
+      progress,
     };
   }
 
@@ -720,13 +745,15 @@ export async function equipCardFrame(playerId: string, frameId: string, email?: 
 
 export async function equipPlaymat(playerId: string, playmatId: string, email?: string | null) {
   if (isLocalTestAccount(email)) {
+    const progress = {
+      ...localTestPlayerProgress(playerId),
+      equipped_playmat: playmatId,
+      updated_at: new Date().toISOString(),
+    };
+    saveLocalTestCosmetics(progress);
     return {
       error: null,
-      progress: {
-        ...localTestPlayerProgress(playerId),
-        equipped_playmat: playmatId,
-        updated_at: new Date().toISOString(),
-      },
+      progress,
     };
   }
 
