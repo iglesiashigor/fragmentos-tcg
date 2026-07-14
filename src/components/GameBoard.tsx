@@ -586,9 +586,12 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
     } else if (card.type === 'equipment') {
       if (player.mana < card.manaCost) { setGameMessage('Mana insuficiente!'); return; }
       if (!bypassRecoverConfirm && requestRecoverConfirmation(card, 'onPlay', () => handleCardFromHand(card, true))) return;
+      const canReplaceHeroAmulet =
+        player.hero.equipment?.cardId === 'colar-mistico' &&
+        card.id !== 'colar-mistico';
       // Filter out units that already have equipment
       const validEquipTargets = [
-        ...(player.hero.equipment ? [] : [player.hero.instanceId]),
+        ...(!player.hero.equipment || canReplaceHeroAmulet ? [player.hero.instanceId] : []),
         ...(card.heroOnly ? [] : player.units.filter(u => !u.equipment).map(u => u.instanceId))
       ];
       if (validEquipTargets.length === 0) {
