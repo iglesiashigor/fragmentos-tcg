@@ -8,6 +8,7 @@ import {
   getCrystalRank,
   PlayerMatchResult,
   RankingProfile,
+  SeasonInfo,
   summarizeHistory,
 } from '../lib/ranking';
 import {
@@ -78,6 +79,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
   const [historyMode, setHistoryMode] = useState<'all' | 'pvp' | 'ai'>('all');
   const [history, setHistory] = useState<PlayerMatchResult[]>([]);
   const [ranking, setRanking] = useState<RankingProfile[]>([]);
+  const [activeSeason, setActiveSeason] = useState<SeasonInfo | null>(null);
   const [progress, setProgress] = useState<PlayerProgress | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingFrame, setSavingFrame] = useState<string | null>(null);
@@ -100,14 +102,15 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
     let mounted = true;
     const load = async () => {
       setLoading(true);
-      const [historyResult, rankingResult, progressResult] = await Promise.all([
-        fetchPlayerHistory(user.id),
+      const [rankingResult, progressResult] = await Promise.all([
         fetchRanking(500),
         fetchPlayerProgress(user.id, user.email),
       ]);
+      const historyResult = await fetchPlayerHistory(user.id, undefined, rankingResult.season?.id ?? null);
       if (!mounted) return;
       setHistory(historyResult.data);
       setRanking(rankingResult.data);
+      setActiveSeason(rankingResult.season ?? null);
       setProgress(progressResult.data);
       setLoading(false);
     };
@@ -119,7 +122,8 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
   }, [user]);
 
   const summary = useMemo(() => summarizeHistory(history), [history]);
-  const rating = profile?.rating ?? 0;
+  const currentSeasonStanding = user ? ranking.find(item => item.id === user.id) : undefined;
+  const rating = currentSeasonStanding?.rating ?? profile?.rating ?? 0;
   const rank = getCrystalRank(rating);
   const filteredHistory = history.filter(match => historyMode === 'all' || match.mode === historyMode);
   const pvpTotal = summary.pvpWins + summary.pvpLosses + summary.pvpDraws;
@@ -153,6 +157,10 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
   const gold = progress?.gold ?? 0;
   const visibleLevelRewards = LEVEL_REWARDS.filter(reward => reward.level >= levelInfo.level).slice(0, 5);
   const levelRewardsToShow = visibleLevelRewards.length > 0 ? visibleLevelRewards : LEVEL_REWARDS.slice(-5);
+  const seasonEndsAt = activeSeason ? new Date(activeSeason.ends_at) : null;
+  const seasonDaysRemaining = seasonEndsAt
+    ? Math.max(0, Math.ceil((seasonEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null;
 
   const updateProgress = (nextProgress: PlayerProgress) => {
     setProgress(nextProgress);
@@ -344,6 +352,39 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
               <StatBox label="Vitorias PvP" value={summary.pvpWins} tone="emerald" />
               <StatBox label="Derrotas PvP" value={summary.pvpLosses} tone="rose" />
               <StatBox label="Winrate" value={`${winRate}%`} tone="blue" />
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-5 rounded-2xl border border-amber-500/25 bg-slate-950/70 p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/35 bg-amber-500/15">
+                <Crown className="h-5 w-5 text-amber-200" />
+              </div>
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-200">Temporada PvP</p>
+                <h2 className="mt-1 text-lg font-black text-white">{activeSeason?.name ?? 'Sem temporada ativa'}</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  {activeSeason
+                    ? `Ranking sazonal separado do ranking geral. Duração padrão: 30 dias.`
+                    : 'Quando uma temporada estiver ativa, o ranking PvP será separado por período.'}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-center">
+                <p className="text-lg font-black text-white">{rating}</p>
+                <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Pontos</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-center">
+                <p className="text-lg font-black text-white">{myPosition > 0 ? `#${myPosition}` : '-'}</p>
+                <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Posição</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-center">
+                <p className="text-lg font-black text-white">{seasonDaysRemaining ?? '-'}</p>
+                <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Dias</p>
+              </div>
             </div>
           </div>
         </div>
@@ -711,7 +752,7 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
             </div>
           </div>
         ) : tab === 'history' ? (
-          <Panel title="Historico de partidas" icon={<Calendar className="w-4 h-4 text-blue-300" />}>
+          <Panel title={activeSeason ? `Historico - ${activeSeason.name}` : 'Historico de partidas'} icon={<Calendar className="w-4 h-4 text-blue-300" />}>
             <div className="flex gap-2 mb-4">
               {[
                 ['all', 'Todas'],
@@ -761,8 +802,13 @@ export default function PlayerProfile({ onBack, onShowAuth, onProgressChange, in
             </div>
           </Panel>
         ) : (
-          <Panel title="Ranking PvP" icon={<Medal className="w-4 h-4 text-amber-300" />}>
+          <Panel title={activeSeason ? `Ranking PvP - ${activeSeason.name}` : 'Ranking PvP'} icon={<Medal className="w-4 h-4 text-amber-300" />}>
             <div className="space-y-4">
+              {activeSeason && (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-100">
+                  Temporada ativa termina em {seasonDaysRemaining} dia{seasonDaysRemaining === 1 ? '' : 's'}. O top 5 abaixo é separado por elo dentro desta temporada.
+                </div>
+              )}
               {rankingByRank.length === 0 ? (
                 <p className="text-slate-500 text-sm py-6 text-center">Nenhum jogador ranqueado ainda.</p>
               ) : rankingByRank.map(group => (
