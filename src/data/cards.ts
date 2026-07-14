@@ -825,7 +825,7 @@ export const ALL_CARDS: CardDefinition[] = [
   // ========= METADILHO XAMÃ CARDS =========
   {
     id: 'bencao',
-    name: 'Benção',
+    name: 'Bênção',
     type: 'spell',
     manaCost: 2,
     effects: [{ type: 'heal', value: 4, target: 'anyUnit', timing: 'onPlay' }],
@@ -1265,7 +1265,7 @@ export const ALL_CARDS: CardDefinition[] = [
     health: 2,
     effects: [],
     isNeutral: true,
-    flavorText: 'Essa unidade não é afetada por nenhum Bônus',
+    flavorText: 'Essa unidade não é afetada por nenhum bônus.',
   },
 ];
 
