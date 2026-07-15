@@ -282,10 +282,7 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
       )}
 
       {isPlayable && !isSelected && (
-        <>
-          <div className="absolute inset-[3px] z-20 rounded-md pointer-events-none card-playable-outline" />
-          <div className="absolute inset-x-2 bottom-5 z-20 h-1 rounded-full pointer-events-none card-playable-marker" />
-        </>
+        <div className="absolute inset-x-2 bottom-5 z-20 h-1 rounded-full pointer-events-none card-playable-marker" />
       )}
 
       {/* Exhausted overlay */}
