@@ -14,6 +14,7 @@ interface CardDisplayProps {
   size?: 'sm' | 'md' | 'lg';
   showBack?: boolean;
   cosmeticFrame?: string;
+  playableTone?: string;
 }
 
 const CONDITION_CONFIG: Record<ConditionName, { color: string; icon: React.ReactNode }> = {
@@ -74,7 +75,7 @@ function isBattle(card: CardDefinition | BattleCard): card is BattleCard {
   return 'instanceId' in card;
 }
 
-export default function CardDisplay({ card, isBattleCard, isSelected, isValidTarget, isPlayable, isExhausted, onClick, size = 'md', showBack, cosmeticFrame }: CardDisplayProps) {
+export default function CardDisplay({ card, isBattleCard, isSelected, isValidTarget, isPlayable, isExhausted, onClick, size = 'md', showBack, cosmeticFrame, playableTone }: CardDisplayProps) {
   const [failedImages, setFailedImages] = React.useState<Record<string, boolean>>({});
   const bc = isBattle(card) ? card : null;
   const def = isBattle(card) ? null : card as CardDefinition;
@@ -120,6 +121,9 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
   const cosmeticClass = cosmeticFrame && cosmeticFrame !== 'default'
     ? `card-cosmetic-${cosmeticFrame} card-cosmetic-${cosmeticFrame}-${type}`
     : '';
+  const playableToneClass = playableTone && playableTone !== 'default'
+    ? `card-playable-tone-${playableTone}`
+    : '';
 
   if (showBack) {
     return (
@@ -138,7 +142,7 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
 
   return (
     <div
-      className={`${sizeClasses[size]} rounded-lg tcg-card card-type-${type} bg-gradient-to-br ${colorClass} border-2 flex flex-col overflow-hidden transition-all duration-200 shadow-lg shadow-black/30 ${selected} ${validTarget} ${playable} ${clickable} ${exhausted ? 'opacity-55 grayscale-[35%]' : ''} ${tierClass} ${heroClass} ${cosmeticClass} relative select-none`}
+      className={`${sizeClasses[size]} rounded-lg tcg-card card-type-${type} bg-gradient-to-br ${colorClass} border-2 flex flex-col overflow-hidden transition-all duration-200 shadow-lg shadow-black/30 ${selected} ${validTarget} ${playable} ${playableToneClass} ${clickable} ${exhausted ? 'opacity-55 grayscale-[35%]' : ''} ${tierClass} ${heroClass} ${cosmeticClass} relative select-none`}
       onClick={onClick}
       title={card.name}
     >
@@ -280,7 +284,7 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
       {isPlayable && !isSelected && (
         <>
           <div className="absolute inset-[3px] z-20 rounded-md pointer-events-none card-playable-outline" />
-          <div className="absolute inset-x-2 bottom-5 z-20 h-1 rounded-full bg-emerald-300/95 pointer-events-none card-playable-marker" />
+          <div className="absolute inset-x-2 bottom-5 z-20 h-1 rounded-full pointer-events-none card-playable-marker" />
         </>
       )}
 

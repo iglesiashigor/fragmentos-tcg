@@ -1488,6 +1488,7 @@ export default function GameBoard({ initialState, onGameEnd, isPvP, onStateChang
                     card={card}
                     size="sm"
                     isPlayable={canUseCardNow}
+                    playableTone={playerCardFrame}
                     onClick={() => handleCardFromHand(card)}
                   />
                   <button
