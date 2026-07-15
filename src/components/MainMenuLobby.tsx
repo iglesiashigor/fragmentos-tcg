@@ -7,7 +7,7 @@ import { fetchPlayerProgress, PlayerProgress } from '../lib/progression';
 import type { ProfileTab } from './PlayerProfile';
 import {
   AlertTriangle, BookOpen, Calendar, ChevronRight, Coins, Crown, Edit3, Gem, Globe,
-  Layers, LogIn, LogOut, Plus, Shield, ShoppingBag, Sparkles, Star, Swords, Target,
+  Layers, LogIn, LogOut, Plus, ScrollText, Shield, ShoppingBag, Sparkles, Star, Swords, Target,
   Trash2, Trophy, User, Users, X, Zap,
 } from 'lucide-react';
 
@@ -66,6 +66,68 @@ const CARD_TYPE_TONES: Partial<Record<CardType, string>> = {
   equipment: 'border-amber-500/25 bg-amber-500/10 text-amber-200',
   mount: 'border-purple-500/25 bg-purple-500/10 text-purple-200',
 };
+
+const QUICK_RULES = [
+  {
+    title: 'Objetivo',
+    description: 'Reduza a vida do heroi inimigo a 0 antes que o seu heroi seja derrotado.',
+  },
+  {
+    title: 'Turno',
+    description: 'No seu turno voce compra, ganha mana, joga cartas, prepara a mesa e pode atacar antes de encerrar.',
+  },
+  {
+    title: 'Mana',
+    description: 'A mana aumenta com o passar dos turnos ate o limite de 10. Cada carta gasta a quantidade indicada no canto superior.',
+  },
+  {
+    title: 'Ataque',
+    description: 'Unidades e herois atacam uma vez por turno, exceto quando um efeito permitir atacar novamente.',
+  },
+  {
+    title: 'Alvos',
+    description: 'Se o oponente tiver unidades em campo, elas devem ser derrotadas antes de atacar o heroi, salvo efeitos como furtividade.',
+  },
+  {
+    title: 'Descarte',
+    description: 'Cartas derrotadas, usadas ou removidas vao para o descarte. Algumas cartas conseguem recuperar alvos de la.',
+  },
+];
+
+const KEYWORD_GLOSSARY = [
+  {
+    term: 'Furtividade',
+    description: 'Permite ignorar unidades inimigas e atacar o heroi diretamente enquanto o efeito estiver ativo.',
+  },
+  {
+    term: 'Veneno',
+    description: 'Causa dano recorrente ao alvo afetado, normalmente no inicio ou durante a passagem dos turnos.',
+  },
+  {
+    term: 'Paralisado',
+    description: 'Impede ou limita a acao do alvo afetado por um periodo definido pelo efeito.',
+  },
+  {
+    term: 'Congelado',
+    description: 'Trava temporariamente o alvo, dificultando ataques ou outras acoes enquanto durar.',
+  },
+  {
+    term: 'Equipamento',
+    description: 'Carta anexada a um heroi ou unidade para conceder bonus. Pode ter durabilidade e ir ao descarte ao acabar.',
+  },
+  {
+    term: 'Montaria',
+    description: 'Funciona como um apoio anexado a um alvo, concedendo bonus enquanto tiver durabilidade.',
+  },
+  {
+    term: 'Terreno',
+    description: 'Fica no campo e aplica efeitos continuos, de inicio de turno ou modificadores de custo.',
+  },
+  {
+    term: 'Reviver/recuperar',
+    description: 'Busca cartas do descarte. Se nao houver alvo valido, o jogo deve avisar antes de gastar a carta.',
+  },
+];
 
 type DeckCardEntry = {
   cardId: string;
@@ -186,6 +248,7 @@ export default function MainMenuLobby({
     onConfirm: () => void;
   } | null>(null);
   const [previewDeck, setPreviewDeck] = useState<DeckDefinition | null>(null);
+  const [showRulesModal, setShowRulesModal] = useState(false);
 
   const defaultDeckIds = useMemo(() => new Set(DEFAULT_DECKS.map(deck => deck.id)), []);
   const profileName = profile?.username ?? user?.email?.split('@')[0] ?? 'Jogador';
@@ -515,6 +578,83 @@ export default function MainMenuLobby({
         </div>
       )}
 
+      {showRulesModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="quick-rules-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowRulesModal(false);
+          }}
+        >
+          <div className="flex max-h-[86vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl shadow-black/50">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-800 p-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <ScrollText className="h-4 w-4 text-amber-300" />
+                  <h2 id="quick-rules-title" className="text-lg font-black text-white">Regras rapidas</h2>
+                </div>
+                <p className="mt-1 text-sm text-slate-400">
+                  Um resumo para consultar antes da partida, sem sair do lobby.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRulesModal(false)}
+                className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-400 transition-colors hover:border-slate-600 hover:text-white"
+                aria-label="Fechar regras"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+                <section className="rounded-xl border border-slate-800 bg-slate-900/55 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Swords className="h-4 w-4 text-red-300" />
+                    <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-300">Como jogar</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {QUICK_RULES.map((rule, index) => (
+                      <div key={rule.title} className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10 text-sm font-black text-amber-200">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-black text-white">{rule.title}</p>
+                          <p className="mt-1 text-sm leading-relaxed text-slate-400">{rule.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="rounded-xl border border-slate-800 bg-slate-900/55 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-blue-300" />
+                    <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-300">Glossario</h3>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {KEYWORD_GLOSSARY.map(keyword => (
+                      <div key={keyword.term} className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                        <p className="font-black text-white">{keyword.term}</p>
+                        <p className="mt-1 text-sm leading-relaxed text-slate-400">{keyword.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-100">
+                Dica: se uma carta buscar algo no descarte ou exigir um alvo especifico, confira a mesa antes de usar para nao gastar recurso sem efeito.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="border-b border-slate-800/80 bg-slate-950/90 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
@@ -643,6 +783,10 @@ export default function MainMenuLobby({
                 <button onClick={onOpenCollection} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-3 text-sm font-bold text-slate-300 transition-colors hover:border-blue-500/50 hover:text-blue-200">
                   <BookOpen className="w-4 h-4" />
                   Colecao
+                </button>
+                <button onClick={() => setShowRulesModal(true)} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-3 text-sm font-bold text-slate-300 transition-colors hover:border-amber-500/50 hover:text-amber-200">
+                  <ScrollText className="w-4 h-4" />
+                  Regras
                 </button>
               </div>
             </div>
