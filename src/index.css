@@ -61,10 +61,15 @@ body {
 }
 
 .card-playable {
-  border-color: rgba(110, 231, 183, 0.95) !important;
+  --playable-border: rgba(110, 231, 183, 0.95);
+  --playable-ring: rgba(16, 185, 129, 0.72);
+  --playable-halo: rgba(6, 78, 59, 0.32);
+  --playable-inner: rgba(167, 243, 208, 0.95);
+  --playable-soft: rgba(16, 185, 129, 0.18);
+  border-color: var(--playable-border) !important;
   box-shadow:
-    0 0 0 2px rgba(16, 185, 129, 0.72),
-    0 0 0 5px rgba(6, 78, 59, 0.32),
+    0 0 0 2px var(--playable-ring),
+    0 0 0 5px var(--playable-halo),
     0 10px 22px rgba(0, 0, 0, 0.34);
   transform: translateY(-2px);
 }
@@ -75,14 +80,15 @@ body {
 }
 
 .card-playable-marker {
-  box-shadow: 0 0 10px rgba(52, 211, 153, 0.75);
+  background: var(--playable-inner, rgba(167, 243, 208, 0.95));
+  box-shadow: 0 0 10px var(--playable-ring, rgba(52, 211, 153, 0.75));
 }
 
 .card-playable-outline {
-  border: 1px solid rgba(167, 243, 208, 0.95);
+  border: 1px solid var(--playable-inner, rgba(167, 243, 208, 0.95));
   box-shadow:
-    inset 0 0 0 1px rgba(16, 185, 129, 0.52),
-    inset 0 0 14px rgba(16, 185, 129, 0.18);
+    inset 0 0 0 1px var(--playable-ring, rgba(16, 185, 129, 0.52)),
+    inset 0 0 14px var(--playable-soft, rgba(16, 185, 129, 0.18));
 }
 
 .card-playable-outline::before,
@@ -91,8 +97,64 @@ body {
   position: absolute;
   width: 12px;
   height: 12px;
-  border-color: rgba(110, 231, 183, 0.95);
+  border-color: var(--playable-border, rgba(110, 231, 183, 0.95));
   pointer-events: none;
+}
+
+.card-playable-tone-amber {
+  --playable-border: rgba(251, 191, 36, 0.98);
+  --playable-ring: rgba(251, 191, 36, 0.72);
+  --playable-halo: rgba(146, 64, 14, 0.32);
+  --playable-inner: rgba(253, 230, 138, 0.96);
+  --playable-soft: rgba(251, 191, 36, 0.18);
+}
+
+.card-playable-tone-sapphire {
+  --playable-border: rgba(96, 165, 250, 0.98);
+  --playable-ring: rgba(59, 130, 246, 0.72);
+  --playable-halo: rgba(30, 64, 175, 0.34);
+  --playable-inner: rgba(191, 219, 254, 0.96);
+  --playable-soft: rgba(96, 165, 250, 0.18);
+}
+
+.card-playable-tone-ruby {
+  --playable-border: rgba(251, 113, 133, 0.98);
+  --playable-ring: rgba(244, 63, 94, 0.72);
+  --playable-halo: rgba(136, 19, 55, 0.34);
+  --playable-inner: rgba(254, 202, 202, 0.96);
+  --playable-soft: rgba(244, 63, 94, 0.18);
+}
+
+.card-playable-tone-emerald {
+  --playable-border: rgba(52, 211, 153, 0.98);
+  --playable-ring: rgba(16, 185, 129, 0.72);
+  --playable-halo: rgba(6, 78, 59, 0.32);
+  --playable-inner: rgba(167, 243, 208, 0.96);
+  --playable-soft: rgba(16, 185, 129, 0.18);
+}
+
+.card-playable-tone-obsidian {
+  --playable-border: rgba(203, 213, 225, 0.98);
+  --playable-ring: rgba(148, 163, 184, 0.66);
+  --playable-halo: rgba(51, 65, 85, 0.36);
+  --playable-inner: rgba(226, 232, 240, 0.94);
+  --playable-soft: rgba(148, 163, 184, 0.16);
+}
+
+.card-playable-tone-amethyst {
+  --playable-border: rgba(216, 180, 254, 0.98);
+  --playable-ring: rgba(168, 85, 247, 0.7);
+  --playable-halo: rgba(88, 28, 135, 0.34);
+  --playable-inner: rgba(233, 213, 255, 0.95);
+  --playable-soft: rgba(168, 85, 247, 0.17);
+}
+
+.card-playable-tone-frost {
+  --playable-border: rgba(186, 230, 253, 0.98);
+  --playable-ring: rgba(56, 189, 248, 0.72);
+  --playable-halo: rgba(7, 89, 133, 0.34);
+  --playable-inner: rgba(224, 242, 254, 0.96);
+  --playable-soft: rgba(56, 189, 248, 0.17);
 }
 
 .card-playable-outline::before {
