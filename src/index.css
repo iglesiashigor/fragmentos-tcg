@@ -60,6 +60,65 @@ body {
   filter: brightness(1.04);
 }
 
+.card-playable {
+  border-color: rgba(110, 231, 183, 0.95) !important;
+  box-shadow:
+    0 0 0 2px rgba(16, 185, 129, 0.72),
+    0 0 0 5px rgba(6, 78, 59, 0.32),
+    0 10px 22px rgba(0, 0, 0, 0.34);
+  transform: translateY(-2px);
+}
+
+.card-playable:hover {
+  transform: translateY(-6px) scale(1.035);
+  filter: brightness(1.08);
+}
+
+.card-playable-marker {
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.75);
+}
+
+.card-playable-outline {
+  border: 1px solid rgba(167, 243, 208, 0.95);
+  box-shadow:
+    inset 0 0 0 1px rgba(16, 185, 129, 0.52),
+    inset 0 0 14px rgba(16, 185, 129, 0.18);
+}
+
+.card-playable-outline::before,
+.card-playable-outline::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: rgba(110, 231, 183, 0.95);
+  pointer-events: none;
+}
+
+.card-playable-outline::before {
+  left: 0;
+  top: 0;
+  border-left: 2px solid;
+  border-top: 2px solid;
+  border-top-left-radius: 4px;
+}
+
+.card-playable-outline::after {
+  right: 0;
+  bottom: 0;
+  border-right: 2px solid;
+  border-bottom: 2px solid;
+  border-bottom-right-radius: 4px;
+}
+
+.card-targetable {
+  border-color: rgba(52, 211, 153, 0.95) !important;
+  box-shadow:
+    0 0 0 2px rgba(52, 211, 153, 0.58),
+    0 0 0 5px rgba(6, 78, 59, 0.42),
+    0 10px 22px rgba(0, 0, 0, 0.35);
+}
+
 .card-back {
   border: 2px solid rgba(71, 85, 105, 0.82);
   background:
@@ -184,9 +243,7 @@ body {
   inset: -0.45rem;
   border-radius: 1.5rem;
   border: 1px solid rgba(148, 163, 184, 0.1);
-  background:
-    linear-gradient(90deg, rgba(59, 130, 246, 0.08), transparent 44%, rgba(244, 63, 94, 0.08)),
-    repeating-linear-gradient(90deg, transparent 0 38px, rgba(255, 255, 255, 0.018) 38px 39px);
+  background: transparent;
   pointer-events: none;
 }
 
@@ -201,8 +258,7 @@ body {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.025), transparent),
-    repeating-linear-gradient(135deg, transparent 0 52px, rgba(255, 255, 255, 0.018) 52px 53px);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.08));
   pointer-events: none;
 }
 
@@ -212,6 +268,11 @@ body {
 
 .battle-zone-player {
   border-color: rgba(59, 130, 246, 0.28);
+}
+
+.battle-zone-player::before,
+.hand-zone::before {
+  background: transparent;
 }
 
 .battle-zone-label {
