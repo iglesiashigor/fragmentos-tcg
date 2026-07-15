@@ -8,6 +8,7 @@ interface CardDisplayProps {
   isBattleCard?: boolean;
   isSelected?: boolean;
   isValidTarget?: boolean;
+  isPlayable?: boolean;
   isExhausted?: boolean;
   onClick?: () => void;
   size?: 'sm' | 'md' | 'lg';
@@ -73,7 +74,7 @@ function isBattle(card: CardDefinition | BattleCard): card is BattleCard {
   return 'instanceId' in card;
 }
 
-export default function CardDisplay({ card, isBattleCard, isSelected, isValidTarget, isExhausted, onClick, size = 'md', showBack, cosmeticFrame }: CardDisplayProps) {
+export default function CardDisplay({ card, isBattleCard, isSelected, isValidTarget, isPlayable, isExhausted, onClick, size = 'md', showBack, cosmeticFrame }: CardDisplayProps) {
   const [failedImages, setFailedImages] = React.useState<Record<string, boolean>>({});
   const bc = isBattle(card) ? card : null;
   const def = isBattle(card) ? null : card as CardDefinition;
@@ -102,7 +103,8 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
   const colorClass = TYPE_COLORS[type] || TYPE_COLORS.unit;
   const artGradient = TYPE_ART_COLORS[type] || TYPE_ART_COLORS.unit;
   const selected = isSelected ? 'ring-2 ring-amber-300 ring-offset-2 ring-offset-slate-950 scale-105 brightness-105' : '';
-  const validTarget = isValidTarget ? 'ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-950 cursor-pointer brightness-105' : '';
+  const validTarget = isValidTarget ? 'card-targetable cursor-pointer brightness-105' : '';
+  const playable = isPlayable ? 'card-playable cursor-pointer brightness-105' : '';
   const clickable = onClick ? 'cursor-pointer hover:scale-[1.03] card-glow' : '';
   const tierClass = tier === 'weak' ? 'tier-weak' : tier === 'medium' ? 'tier-medium' : tier === 'strong' ? 'tier-strong' : '';
   const heroClass = type === 'hero' ? 'hero-card' : '';
@@ -136,7 +138,7 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
 
   return (
     <div
-      className={`${sizeClasses[size]} rounded-lg tcg-card card-type-${type} bg-gradient-to-br ${colorClass} border-2 flex flex-col overflow-hidden transition-all duration-200 shadow-lg shadow-black/30 ${selected} ${validTarget} ${clickable} ${exhausted ? 'opacity-55 grayscale-[35%]' : ''} ${tierClass} ${heroClass} ${cosmeticClass} relative select-none`}
+      className={`${sizeClasses[size]} rounded-lg tcg-card card-type-${type} bg-gradient-to-br ${colorClass} border-2 flex flex-col overflow-hidden transition-all duration-200 shadow-lg shadow-black/30 ${selected} ${validTarget} ${playable} ${clickable} ${exhausted ? 'opacity-55 grayscale-[35%]' : ''} ${tierClass} ${heroClass} ${cosmeticClass} relative select-none`}
       onClick={onClick}
       title={card.name}
     >
@@ -273,6 +275,13 @@ export default function CardDisplay({ card, isBattleCard, isSelected, isValidTar
         <div className="absolute inset-x-1 top-8 z-20 rounded bg-amber-300/95 text-center text-[9px] font-black uppercase tracking-wide text-amber-950 shadow-md pointer-events-none">
           Selecionado
         </div>
+      )}
+
+      {isPlayable && !isSelected && (
+        <>
+          <div className="absolute inset-[3px] z-20 rounded-md pointer-events-none card-playable-outline" />
+          <div className="absolute inset-x-2 bottom-5 z-20 h-1 rounded-full bg-emerald-300/95 pointer-events-none card-playable-marker" />
+        </>
       )}
 
       {/* Exhausted overlay */}
