@@ -566,22 +566,6 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
     </div>
   );
 
-  if (!coinFlipComplete && !gameState.gameOver) {
-    return (
-      <CoinFlip
-        playerHeroName={playerNames[0]}
-        aiHeroName={playerNames[1]}
-        playerLabel="Jogador 1"
-        opponentLabel="Jogador 2"
-        predeterminedResult={gameState.currentPlayer}
-        autoStart
-        autoContinue
-        spinDuration={900}
-        onComplete={() => setCoinFlipComplete(true)}
-      />
-    );
-  }
-
   if (winner !== null) {
     const won = winner !== 'draw' && winner === playerNumber;
     const resultTheme = winner === 'draw'
@@ -657,24 +641,40 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
   }
 
   return (
-    <GameBoard
-      key="pvp-game"
-      initialState={gameState}
-      onGameEnd={handleGameEnd}
-      isPvP={true}
-      onStateChange={handleStateChange}
-      myPlayerIndex={playerNumber === 1 ? 1 : 0}
-      playerNames={playerNames}
-      pvpTimer={{
-        secondsRemaining,
-        faults: gameState.inactivityFaults ?? [0, 0],
-      }}
-      pvpConnection={{
-        saving: savingMove,
-        opponentAbsentSeconds,
-        connected: opponentAbsentSeconds === null || opponentAbsentSeconds < 25,
-      }}
-      cosmetics={cosmetics}
-    />
+    <>
+      <GameBoard
+        key="pvp-game"
+        initialState={gameState}
+        onGameEnd={handleGameEnd}
+        isPvP={true}
+        onStateChange={handleStateChange}
+        myPlayerIndex={playerNumber === 1 ? 1 : 0}
+        playerNames={playerNames}
+        pvpTimer={{
+          secondsRemaining,
+          faults: gameState.inactivityFaults ?? [0, 0],
+        }}
+        pvpConnection={{
+          saving: savingMove,
+          opponentAbsentSeconds,
+          connected: opponentAbsentSeconds === null || opponentAbsentSeconds < 25,
+        }}
+        cosmetics={cosmetics}
+      />
+      {!coinFlipComplete && !gameState.gameOver && (
+        <CoinFlip
+          playerHeroName={playerNames[0]}
+          aiHeroName={playerNames[1]}
+          playerLabel="Jogador 1"
+          opponentLabel="Jogador 2"
+          predeterminedResult={gameState.currentPlayer}
+          autoStart
+          autoContinue
+          spinDuration={900}
+          onComplete={() => setCoinFlipComplete(true)}
+          variant="modal"
+        />
+      )}
+    </>
   );
 }

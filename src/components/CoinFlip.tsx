@@ -12,6 +12,7 @@ interface CoinFlipProps {
   autoStart?: boolean;
   autoContinue?: boolean;
   spinDuration?: number;
+  variant?: 'screen' | 'modal';
 }
 
 export default function CoinFlip({
@@ -24,6 +25,7 @@ export default function CoinFlip({
   autoStart = false,
   autoContinue = false,
   spinDuration = 1200,
+  variant = 'screen',
 }: CoinFlipProps) {
   const [phase, setPhase] = useState<'intro' | 'spinning' | 'result'>('intro');
   const [result, setResult] = useState<PlayerIndex>(0);
@@ -69,9 +71,13 @@ export default function CoinFlip({
     if (completeTimeoutRef.current) clearTimeout(completeTimeoutRef.current);
   }, []);
 
+  const containerClass = variant === 'modal'
+    ? 'fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm'
+    : 'min-h-screen flex items-center justify-center game-bg p-4';
+
   return (
-    <div className="min-h-screen flex items-center justify-center game-bg p-4">
-      <div className="max-w-md w-full">
+    <div className={containerClass}>
+      <div className={`${variant === 'modal' ? 'rounded-2xl border border-amber-500/30 bg-slate-950/95 p-6 shadow-2xl shadow-black/60' : ''} max-w-md w-full`}>
         {/* Intro */}
         {phase === 'intro' && (
           <div className="text-center animate-fade-in">
