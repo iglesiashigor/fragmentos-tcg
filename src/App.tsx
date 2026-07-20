@@ -22,7 +22,7 @@ const MatchmakingScreen = lazy(() => import('./components/MatchmakingScreen'));
 const PvPGameBoard = lazy(() => import('./components/PvPGameBoard'));
 const PlayerProfile = lazy(() => import('./components/PlayerProfile'));
 
-type Screen = 'menu' | 'deckBuilder' | 'collection' | 'coinFlip' | 'game' | 'gameOver' | 'matchmaking' | 'pvpGame' | 'profile';
+type Screen = 'menu' | 'deckBuilder' | 'collection' | 'game' | 'gameOver' | 'matchmaking' | 'pvpGame' | 'profile';
 
 function ScreenLoader() {
   return (
@@ -43,6 +43,7 @@ function AppContent() {
   const [lastPlayerDeck, setLastPlayerDeck] = useState<DeckDefinition | null>(null);
   const [lastAIDeck, setLastAIDeck] = useState<DeckDefinition | null>(null);
   const [pendingDecks, setPendingDecks] = useState<{ player: DeckDefinition; ai: DeckDefinition } | null>(null);
+  const [showInitialCoinFlip, setShowInitialCoinFlip] = useState(false);
   const [pvpDeck, setPvpDeck] = useState<DeckDefinition | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [gameMode, setGameMode] = useState<'ai' | 'pvp'>('ai');
@@ -92,7 +93,11 @@ function AppContent() {
     setLastAIDeck(aiDeck);
     setWinner(null);
     setGameMode('ai');
-    setScreen('coinFlip');
+    const playerCards = buildDeck(playerDeck.heroId, playerDeck.coreCards, playerDeck.neutralCards);
+    const aiCards = buildDeck(aiDeck.heroId, aiDeck.coreCards, aiDeck.neutralCards);
+    setGameState(createInitialState(playerDeck.heroId, playerCards, aiDeck.heroId, aiCards, 0));
+    setShowInitialCoinFlip(true);
+    setScreen('game');
   }, []);
 
   const handleStartPvp = useCallback((playerDeck: DeckDefinition) => {
@@ -119,6 +124,7 @@ function AppContent() {
     const state = createInitialState(playerHeroId, playerCards, aiHeroId, aiCards, firstPlayer);
     setGameState(state);
     setPendingDecks(null);
+    setShowInitialCoinFlip(false);
     setScreen('game');
   }, [pendingDecks]);
 
@@ -237,13 +243,6 @@ function AppContent() {
           onShowAuth={() => setShowAuth(true)}
         />
       )}
-      {screen === 'coinFlip' && pendingDecks && (
-        <CoinFlip
-          playerHeroName={getCardById(pendingDecks.player.heroId)?.name ?? 'Jogador'}
-          aiHeroName={getCardById(pendingDecks.ai.heroId)?.name ?? 'Inimigo'}
-          onComplete={handleCoinFlipComplete}
-        />
-      )}
       {screen === 'game' && gameState && (
         <>
           <GameBoard
@@ -252,6 +251,14 @@ function AppContent() {
             playerNames={[profile?.username ?? 'Você', 'IA']}
             cosmetics={boardCosmetics}
           />
+          {showInitialCoinFlip && pendingDecks && (
+            <CoinFlip
+              playerHeroName={getCardById(pendingDecks.player.heroId)?.name ?? 'Jogador'}
+              aiHeroName={getCardById(pendingDecks.ai.heroId)?.name ?? 'Inimigo'}
+              onComplete={handleCoinFlipComplete}
+              variant="modal"
+            />
+          )}
           {winner !== null && (
             <GameOver
               winner={winner}
