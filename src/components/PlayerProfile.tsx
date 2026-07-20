@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Award, Bot, Calendar, CheckCircle2, ChevronRight, Coins, Crown, Gem, Medal, Palette, Pencil, ScrollText, Shield, ShoppingBag, Sparkles, Target, Trophy, Users, X } from 'lucide-react';
-import { useAuth } from '../lib/authContext';
+import { useAuth } from '../lib/auth';
 import {
   CRYSTAL_RANKS,
   fetchPlayerHistory,

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { GameState, PlayerIndex, DeckDefinition } from '../types/game';
 import { createInitialState, buildDeck, endTurn } from '../engine/gameEngine';
-import { useAuth } from '../lib/authContext';
+import { useAuth } from '../lib/auth';
 import { ArrowLeft, Radio, Loader2, Trophy, Home, Star } from 'lucide-react';
 import GameBoard, { BoardCosmetics } from './GameBoard';
 import CoinFlip from './CoinFlip';
@@ -28,6 +28,18 @@ interface RoomPresence {
   status: string;
   player1_last_seen: string | null;
   player2_last_seen: string | null;
+}
+
+interface GameRoomRow {
+  id: string;
+  player1_id: string | null;
+  player2_id: string | null;
+  player1_deck_id: string | null;
+  player2_deck_id: string | null;
+  player1_last_seen: string | null;
+  player2_last_seen: string | null;
+  status: 'waiting' | 'active' | 'finished';
+  game_state: GameState | null;
 }
 
 function rowToDeck(row: DeckRow): DeckDefinition {
@@ -127,7 +139,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
       if (normalizedState.gameOver && normalizedState.winner !== null) setWinner(normalizedState.winner);
     };
 
-    const loadPlayerNames = async (room: any) => {
+    const loadPlayerNames = async (room: GameRoomRow) => {
       if (!(room.player1_id && room.player2_id)) return;
 
       const { data } = await supabase
@@ -143,8 +155,9 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
       }
     };
 
-    const initializeGameIfHost = async (room: any) => {
+    const initializeGameIfHost = async (room: GameRoomRow) => {
       if (room.game_state) return;
+      if (room.status !== 'active') return;
       if (!(room.player1_id && room.player2_id && room.player1_deck_id && room.player2_deck_id)) return;
       if (room.player1_id !== user.id) return;
 
@@ -185,7 +198,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
       }
     };
 
-    const handleRoom = async (room: any) => {
+    const handleRoom = async (room: GameRoomRow) => {
       if (!mounted) return;
 
       const myNumber = room.player1_id === user.id ? 0 : room.player2_id === user.id ? 1 : null;
@@ -209,7 +222,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
 
       if (room.game_state) {
         applyGameState(room.game_state as GameState);
-      } else {
+      } else if (room.status === 'active') {
         await initializeGameIfHost(room);
       }
 
@@ -241,7 +254,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
           'postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'game_rooms', filter: `id=eq.${roomId}` },
           payload => {
-            void handleRoom(payload.new);
+            void handleRoom(payload.new as GameRoomRow);
           }
         )
         .subscribe();
@@ -371,7 +384,8 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
     void supabase
       .from('game_rooms')
       .update({ status: 'finished', game_state: gameState })
-      .eq('id', roomId);
+      .eq('id', roomId)
+      .eq('status', 'active');
   }, [gameState, playerIds, playerNames, playerNumber, refreshProfile, roomId, user]);
 
   const handleStateChange = useCallback(async (newState: GameState) => {
@@ -397,6 +411,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
       .from('game_rooms')
       .update({ game_state: stateToSave, status: stateToSave.gameOver ? 'finished' : 'active' })
       .eq('id', roomId)
+      .eq('status', 'active')
       .select('id')
       .maybeSingle();
 
@@ -473,7 +488,8 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
         const { error: updateError } = await supabase
           .from('game_rooms')
           .update({ game_state: nextState, status: nextState.gameOver ? 'finished' : 'active' })
-          .eq('id', roomId);
+          .eq('id', roomId)
+          .eq('status', 'active');
 
         if (updateError) {
           processingTimeoutRef.current = null;

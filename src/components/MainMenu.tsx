@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DeckDefinition } from '../types/game';
 import { getSavedDecks, DEFAULT_DECKS, deleteDeck } from '../data/defaultDecks';
 import { getCardById } from '../data/cards';
-import { useAuth } from '../lib/authContext';
+import { useAuth } from '../lib/auth';
 import {
   Star, Play, Layers, BookOpen, Trash2, Plus, Sword, Shield, Heart,
   ChevronRight, LogIn, LogOut, User, Trophy, Zap, Users, Globe,

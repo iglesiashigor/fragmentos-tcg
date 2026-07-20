@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { DeckDefinition } from '../types/game';
-import { useAuth } from '../lib/authContext';
+import { useAuth } from '../lib/auth';
 import { getSavedDecks } from '../data/defaultDecks';
 
 interface DeckRow {

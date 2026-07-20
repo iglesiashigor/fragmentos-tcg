@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { DeckDefinition } from '../types/game';
 import { getCardById } from '../data/cards';
-import { useAuth } from '../lib/authContext';
+import { useAuth } from '../lib/auth';
 import { useDecks } from '../hooks/useDecks';
 import {
   ArrowLeft, Plus, Clock, Users, Sword, Shield, LogIn, Trash2,

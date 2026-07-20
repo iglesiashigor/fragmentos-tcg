@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { CardDefinition, CardType, DeckDefinition } from '../types/game';
 import { DEFAULT_DECKS, deleteDeck, getSavedDecks } from '../data/defaultDecks';
 import { getCardById } from '../data/cards';
-import { useAuth } from '../lib/authContext';
+import { useAuth } from '../lib/auth';
 import { fetchPlayerProgress, PlayerProgress } from '../lib/progression';
 import type { ProfileTab } from './PlayerProfile';
 import {
