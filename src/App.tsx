@@ -22,7 +22,7 @@ const MatchmakingScreen = lazy(() => import('./components/MatchmakingScreen'));
 const PvPGameBoard = lazy(() => import('./components/PvPGameBoard'));
 const PlayerProfile = lazy(() => import('./components/PlayerProfile'));
 
-type Screen = 'menu' | 'deckBuilder' | 'collection' | 'game' | 'gameOver' | 'matchmaking' | 'pvpGame' | 'profile';
+type Screen = 'menu' | 'deckBuilder' | 'collection' | 'game' | 'matchmaking' | 'pvpGame' | 'profile';
 
 function ScreenLoader() {
   return (
@@ -152,7 +152,6 @@ function AppContent() {
         .then(() => refreshProfile());
     }
     setWinner(w);
-    setScreen('gameOver');
   }, [gameState, refreshProfile, user]);
 
   const handlePlayAgain = useCallback(() => {
@@ -267,13 +266,6 @@ function AppContent() {
             />
           )}
         </>
-      )}
-      {screen === 'gameOver' && winner !== null && (
-        <GameOver
-          winner={winner}
-          onPlayAgain={handlePlayAgain}
-          onMainMenu={() => setScreen('menu')}
-        />
       )}
       {screen === 'pvpGame' && roomId && (
         <PvPGameBoard
