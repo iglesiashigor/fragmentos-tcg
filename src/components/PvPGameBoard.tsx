@@ -566,7 +566,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
     </div>
   );
 
-  if (winner !== null) {
+  const resultModal = winner !== null ? (() => {
     const won = winner !== 'draw' && winner === playerNumber;
     const resultTheme = winner === 'draw'
       ? {
@@ -599,7 +599,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
         };
 
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 text-white backdrop-blur-sm">
         <div className={`relative overflow-hidden bg-slate-950 border ${resultTheme.border} rounded-2xl max-w-lg w-full text-center shadow-2xl`}>
           <div className={`absolute inset-0 bg-gradient-to-br ${resultTheme.glow}`} />
           <div className="absolute -top-16 left-1/2 h-32 w-64 -translate-x-1/2 rounded-full bg-white/10 blur-3xl" />
@@ -638,7 +638,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
         </div>
       </div>
     );
-  }
+  })() : null;
 
   return (
     <>
@@ -675,6 +675,7 @@ export default function PvPGameBoard({ roomId, onBack, cosmetics }: PvPGameBoard
           variant="modal"
         />
       )}
+      {resultModal}
     </>
   );
 }
